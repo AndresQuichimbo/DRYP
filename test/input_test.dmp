@@ -1,0 +1,89 @@
+drylandmodel
+Model name --------------------------------------(1):
+test
+================ TERRAIN COMPONENTS ================= 
+Topography (DEM)---------------------------------(4):
+test/input/test_dem_m.asc
+Cell factor area --------------------------------(6):
+test/input/test_area_m.asc
+Flow Direction (fd)------------------------------(8):
+test/input/test_flowdir_m.asc
+Boundary conditions (check CHB) ----------------(10):
+test/input/test_chb.asc
+Basin Mask (catchment) -------------------------(12):
+test/input/test_mask_m.asc
+River length -----------------------------------(14):
+test/input/test_riv_m.asc
+River width ------------------------------------(16):
+none
+River bottom elevation -------------------------(18):
+none
+================ SURFACE COMPONENTS ================= 
+Vegetation type Kc -----------------------------(21):
+none
+Soil land use ----------------------------------(23):
+none
+Other ------------------------------------------(25):
+none
+=========== SOIL AND SUBSURFACE PARAMETERS ========== 
+Soil porosity: porosity ------------------------(28):
+test/input/test_rawls_ne.txt
+Theta residual ---------------------------------(30):
+test/input/test_rawls_theta_r.txt
+Available Water content (AWC) ------------------(32):
+test/input/test_rawls_awc.txt
+Wilting Point (wp) -----------------------------(34):
+test/input/test_rawls_wp.txt
+Soil Depth (D) ---------------------------------(36):
+test/input/test_depth_m.asc
+Soi particle distribution parameter (b) --------(38):
+test/input/test_rawls_n.txt
+Soil suction head ------------------------------(40):
+test/input/test_rawls_phi.txt
+Saturated hydraulic conductivity ---------------(42):
+test/input/test_rawls_ks.txt
+sigma_Ksat -------------------------------------(44):
+test/input/test_rawls_sigma_ks.txt
+Initial soil water content ---------------------(46):
+none
+Other ------------------------------------------(48):
+none
+=== GROUNDWATER PARAMETER AND BOUNDARY CONDITIONS ===
+Groundwater Boundary condition (domain) --------(51):
+test/input/test_mask_m.asc
+Aquifer Sat. Hydraulic Conductivity (Ksat_aq) --(53):
+test/input/test_rawls_ks1.txt
+Specific Yield----------------------------------(55):
+none
+Initial Conditions Water table elevation -------(57):
+test/input/test_wte_ini.asc
+Flux Boundary Conditions -----------------------(59):
+None
+Head Boundary Conditions -----------------------(61):
+test/input/test_CHB1.asc
+Other-------------------------------------------(63):
+none
+============== METEOROLOGICAL DATA ==================
+Precipitation ----------------------------------(66):
+test/input/Pre_60m_00_05_sin.csv
+Potential Evapotranspiration -------------------(68):
+test/input/Pre_60m_00_05_sin.csv
+Other-------------------------------------------(70):
+none
+Other ------------------------------------------(72):
+none
+======== RESULTS AND OUTPUT DIRECTORIES ============= 
+Discharge point results ------------------------(75):
+test/input/test_Flumes_points.csv
+Soil point results output ----------------------(77):
+test/input/test_SM_points.csv
+Groundwater point results ----------------------(79):
+test/input/test_well_point_m.csv
+Folder location results ------------------------(81):
+test/output
+Other ------------------------------------------(83):
+none
+Other ------------------------------------------(85):
+none
+MODEL PARAMETER SETTINGS FILE ------------------(87):
+test/setting_test.dmp
