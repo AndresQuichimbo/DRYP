@@ -168,11 +168,11 @@ class model_environment_status(object):
 		
 		# Reading the raster file of river elevation
 		if not os.path.exists(inputfile.fname_RiverElev):
-			rg.add_zeros('node', 'river_topo__elevation', dtype = float)
-			rg.at_node['river_topo__elevation'][:] = z - 5.0 #[m]
+			rg.add_zeros('node', 'river_topo_elevation', dtype = float)
+			rg.at_node['river_topo_elevation'][:] = z - 5.0 #[m]
 			print('Not available river bottom elevation: z_riv = z_surf-5.0 [m]')
 		else:
-			read_esri_ascii(inputfile.fname_RiverElev, name = 'river_topo__elevation', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_RiverElev, name = 'river_topo_elevation', grid = rg)[1]
 		
 		# Reading a raster file of flow direction in LandLab format (receiving node ID)
 		if os.path.exists(inputfile.fname_FlowDir):

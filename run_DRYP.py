@@ -12,7 +12,7 @@ from components.DRYP_soil_layer import swbm
 from components.DRYP_Gen_Func import GlobalTimeVarPts, GlobalTimeVarAvg, GlobalGridVar
 from components.DRYP_Gen_Func import save_map_to_rastergrid, check_mass_balance
 from components.DRYP_groundwater_EFD import gwflow_EFD, storage, storage_uz_sz
-import DRYP_plot_fun as dryp_plot
+import components.DRYP_plot_fun as dryp_plot
 import matplotlib.pyplot as plt
 from landlab.plot.imshow import imshow_grid
 from datetime import datetime, timedelta
@@ -115,7 +115,7 @@ def run_DRYP(filename_input):
 				if daily == 1:
 					env_state.SZgrid.at_node['discharge'][:] = 0.0
 					env_state.SZgrid.at_node['recharge'][:] = (rech-swb.gwe_dt)*0.001
-					#gw.run_one_step_gw(env_state,1.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001)
+					#gw.run_one_step_gw_R(env_state,1.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001)
 					gw.run_one_step_gw_var_T(env_state,1.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001,20)
 					
 				else:
