@@ -155,8 +155,8 @@ class model_environment_status(object):
 			print('All cells are considered rivers with length of grid size')
 		
 		riv = rg.add_ones('node', 'river', dtype = float)
-		riv[np.where(rg.at_node['river_length'][:] == 0)[0]] = 0
-		self.riv_nodes = np.where(riv >= 1)[0] # River nodes for domain arrays
+		riv[np.where(rg.at_node['river_length'][:] <= 0)[0]] = 0
+		self.riv_nodes = np.where(riv > 0)[0] # River nodes for domain arrays
 		
 		# Reading the raster file of river width
 		if not os.path.exists(inputfile.fname_RiverWidth):
