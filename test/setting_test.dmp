@@ -15,7 +15,7 @@ Read Precipitation from NETCF file..............(13)
 0
 Read Evapotranspiration from NETCF file.........(15)
 0
-Other...........................................(17)
+Read Abstractions from NETCF file ..............(17)
 0
 ============== MODEL COMPONENTS ===================
 Inf.- 0: Scheeke 1: Philips 2: Up_GA 3: Mod_GA..(20)

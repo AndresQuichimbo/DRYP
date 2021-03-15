@@ -27,12 +27,14 @@ class runoff_routing(object):
 		env_state.grid.at_node['base_flow_streams'] = env_state.grid.at_node['SS_loss']*dhriv/(1.0*dt) #[m/dt]		
 		pass		
 
-	def run_runoff_one_step(self,inf,swb,env_state,data_in):				
+	def run_runoff_one_step(self, inf, swb, aof, env_state, data_in):				
 		# dis_dt:	Discharge [mm]
 		# exs_dt:	Infiltration excess [mm]
 		# tls_dt	Transmission losses [mm]
 		# cth_area:	Cell factor area, it reduces or increases the area
-		# Q_ini:	Initial available water in the channel		
+		# Q_ini:	Initial available water in the channel
+		# aof:		River flow abstraction [mm]
+		env_state.grid.at_node['AOF'][:] = aof
 		act_nodes = env_state.act_nodes
 		if data_in.daily_model == 0:
 			env_state.grid.at_node['runoff'][act_nodes] = (inf.exs_dt[act_nodes]*0.001
@@ -77,6 +79,11 @@ def TransLossWV(Qw, nodeID, linkID, grid):
 	Qout = Qw	
 	if grid.at_node['river'][nodeID]  !=  0:		
 		Qin = (Qw+grid.at_node['Q_ini'][nodeID])
+		# abstractions
+		if Qin <= grid.at_node['AOF'][nodeID]:
+			grid.at_node['AOF'][nodeID] = grid.at_node['AOFT'][nodeID]*Qin
+		Qin += -grid.at_node['AOF'][nodeID]
+			
 		grid.at_node['Q_ini'][nodeID] = 0
 		grid.at_node['Transmission_losses'][nodeID] = 0
 			

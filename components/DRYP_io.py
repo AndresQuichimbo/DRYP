@@ -8,7 +8,8 @@ from landlab.io import read_esri_ascii, write_esri_ascii
 from datetime import timedelta, datetime
 from netCDF4 import Dataset, num2date, date2num
 from landlab.components import FlowDirectorSteepest, FlowAccumulator
-
+# Global parameters
+ABC_RIVER = 0.2 # River abstraction parameter
 
 class inputfile(object):
 	"""
@@ -55,6 +56,7 @@ class inputfile(object):
 		# Meterological data ======================================== ET = 
 		self.fname_TSPre = f.drylandmodel[66]	# Precipitation file
 		self.fname_TSMeteo = f.drylandmodel[68]	# Evapotranspiration file
+		self.fname_TSABC = f.drylandmodel[70]	# Abstraction file: AOF, AUZ, ASZ
 		# Vegetation parameters ==========================================
 		self.fname_TSKc = f.drylandmodel[21]
 		# Output files mapas ===================================== Print = 
@@ -75,6 +77,7 @@ class inputfile(object):
 		
 		self.netcf_pre = int(fsimpar.DWAPM_SET[13])
 		self.netcf_ETo = int(fsimpar.DWAPM_SET[15])
+		self.netcf_ABC = int(fsimpar.DWAPM_SET[17])
 		
 		self.inf_method = int(fsimpar.DWAPM_SET[20])
 		self.run_GW = int(fsimpar.DWAPM_SET[24])
@@ -285,7 +288,11 @@ class model_environment_status(object):
 		else:
 			Kc = read_esri_ascii(inputfile.fname_TSKc, name = 'Kc', grid = rg)[1]
 			self.Kc = np.array(Kc)
-
+		
+		# Water bastraction component
+		rg.add_zeros('node', 'AOF', dtype = float)
+		rg.add_ones('node', 'AOFT', dtype = float)
+		rg.at_node['AOFT'][:] = ABC_RIVER
 		# ======================== GW - groundwater parameters ===================
 		#read model domain of the GW model and merge it with the surface model
 		if inputfile.run_GW == 1:

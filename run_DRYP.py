@@ -7,6 +7,7 @@ import pandas as pd
 from components.DRYP_io import inputfile, model_environment_status
 from components.DRYP_infiltration import infiltration
 from components.DRYP_rainfall import rainfall
+from components.DRYP_abstractions import abstractions
 from components.DRYP_routing import runoff_routing
 from components.DRYP_soil_layer import swbm
 from components.DRYP_Gen_Func import GlobalTimeVarPts, GlobalTimeVarAvg, GlobalGridVar
@@ -21,6 +22,7 @@ from datetime import datetime, timedelta
 # data_in:	Input variables 
 # env_state:Model state and fluxes
 # rf:		Precipitation
+# abc:		Anthropic boundary conditions
 # inf:		Infiltration 
 # swbm:		Soil water balance
 # ro:		Routing - Flow accumulator
@@ -37,6 +39,7 @@ def run_DRYP(filename_input):
 	
 	# setting model components
 	rf = rainfall(data_in, env_state)
+	abc = abstractions(data_in, env_state)
 	inf = infiltration(env_state, data_in)
 	swb = swbm(env_state, data_in)
 	swb_rip = swbm(env_state, data_in)
@@ -56,6 +59,7 @@ def run_DRYP(filename_input):
 	gw_level = []
 	pre_mb = []
 	gws_mb = []
+	uzs_mb = []
 	dis_mb = []
 	rch_mb = []
 	aet_mb = []
@@ -78,7 +82,11 @@ def run_DRYP(filename_input):
 				env_state.Duz = swb.Duz
 				
 				rf.run_rainfall_one_step(t_pre, t_eto, env_state, data_in)
-					
+				
+				abc.run_abstractions_one_step(t_pre, env_state, inputfile)
+				
+				rf.rain += abc.auz
+				
 				inf.run_infiltration_one_step(rf, env_state, data_in)
 				
 				swb.run_swbm_one_step(inf.inf_dt, rf.PET, env_state.Kc,
@@ -86,7 +94,7 @@ def run_DRYP(filename_input):
 				
 				env_state.grid.at_node['riv_sat_deficit'][:] *= (swb.tht_dt)
 				
-				ro.run_runoff_one_step(inf, swb, env_state, data_in)
+				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
 				
 				rip_inf_dt = (inf.inf_dt+ro.tls_dt
 					/ np.where(env_state.area_cells_banks <= 0, 1,
@@ -101,12 +109,13 @@ def run_DRYP(filename_input):
 				rip_env_state.aet_dt = swb_rip.aet_dt * env_state.area_cells_banks/env_state.area_cells
 				swb.PCL_dt = swb.pcl_dt * env_state.area_cells_hills/env_state.area_cells
 				swb.AET_dt = swb.aet_dt * env_state.area_cells_hills/env_state.area_cells
-				rech = swb.PCL_dt + rip_env_state.pcl_dt # [mm/dt]
-				swb.gwe_dt = gw.SZ_potential_ET(env_state,swb.gwe_dt) #[mm/dt]								
+				rech = swb.PCL_dt + rip_env_state.pcl_dt - abc.asz# [mm/dt]
+				swb.gwe_dt = gw.SZ_potential_ET(env_state, swb.gwe_dt) #[mm/dt]								
 				rch_agg += (np.array(rech-swb.gwe_dt)*0.001) #[m/dt]
 				
 				# Water balance storage and flow
 				pre_mb.append(np.sum(rf.rain[env_state.grid.core_nodes]))
+				uzs_mb.append(np.sum(swb.L_0[env_state.grid.core_nodes]))
 				aet_mb.append(np.sum((rip_env_state.aet_dt+swb.AET_dt)[env_state.grid.core_nodes]))
 				rch_mb.append(np.sum(env_state.SZgrid.at_node['recharge'][env_state.grid.core_nodes]))				
 				
@@ -158,9 +167,11 @@ def run_DRYP(filename_input):
 	save_map_to_rastergrid(env_state.SZgrid, 'water_table__elevation', fname_out)
 	
 	df = pd.DataFrame()
+	df['Date'] = rf.date_sim_dt
 	df['pre'] = pre_mb
 	df['rch'] = rch_mb
 	df['gws'] = gws_mb
+	df['uzs'] = uzs_mb
 	df['dis'] = dis_mb
 	df['aet'] = aet_mb
 	fname_out = env_state.fnameTS_avg+'_mb.csv'
