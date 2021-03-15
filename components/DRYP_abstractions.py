@@ -5,7 +5,7 @@ from netCDF4 import Dataset, num2date, date2num
 from datetime import datetime
 
 class abstractions(object):
-	def __init__(self, inputfile,env_state):
+	def __init__(self, inputfile, env_state):
 		if inputfile.first_read == 1:
 			t_end = inputfile.Sim_period.days
 			if inputfile.dtUZ_pre != 60:
@@ -60,6 +60,7 @@ class abstractions(object):
 		else:
 			self.data_provided = 0
 			print('Not available water extractions file')
+		self.netcdf_file = int(inputfile.netcf_ABC)
 	# find water abstraction for specific time steps
 	def run_abstractions_one_step(self, t_abc, env_state, inputfile):
 		"""
@@ -70,15 +71,15 @@ class abstractions(object):
 			self.auz = np.zeros(env_state.grid_size)
 			self.asz = np.zeros(env_state.grid_size)
 		else:
-			if not np.isnan(self.idateabc[j_tp]):
-				if inputfile.netcf_ABC == 1:
-					self.aof = (self.fabc.variables['AOF'][self.idateabc[j_tp]][:]).T.flatten()
-					self.auz = (self.fabc.variables['AUZ'][self.idateabc[j_tp]][:]).T.flatten()
-					self.asz = (self.fabc.variables['ASZ'][self.idateabc[j_tp]][:]).T.flatten()
+			if not np.isnan(self.idateabc[t_abc]):
+				if self.netcdf_file == 1:
+					self.aof = (self.fabc.variables['AOF'][self.idateabc[t_abc]][:]).T.flatten()
+					self.auz = (self.fabc.variables['AUZ'][self.idateabc[t_abc]][:]).T.flatten()
+					self.asz = (self.fabc.variables['ASZ'][self.idateabc[t_abc]][:]).T.flatten()
 				else: # Uniform precipitation over the whole catchement
-					self.aof = np.ones(env_state.grid_size)*self.fabc['AOF'][self.idateabc[j_tp]]
-					self.auz = np.ones(env_state.grid_size)*self.fabc['AUZ'][self.idateabc[j_tp]]
-					self.asz = np.ones(env_state.grid_size)*self.fabc['ASZ'][self.idateabc[j_tp]]
+					self.aof = np.ones(env_state.grid_size)*self.fabc['AOF'][self.idateabc[t_abc]]
+					self.auz = np.ones(env_state.grid_size)*self.fabc['AUZ'][self.idateabc[t_abc]]
+					self.asz = np.ones(env_state.grid_size)*self.fabc['ASZ'][self.idateabc[t_abc]]
 			self.rain_day_before = 1
 			
 		
