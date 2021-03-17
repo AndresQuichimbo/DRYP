@@ -193,23 +193,23 @@ class model_environment_status(object):
 										flow_director = 'D8',
 										runoff_rate = 'cth_area_k')
 					
-			area_aux.accumulate_flow(update_flow_director = self.act_update_flow_director)	
+			area_aux.accumulate_flow(update_flow_director=self.act_update_flow_director)	
 			self.area_discharge = np.array(rg.at_node['surface_water__discharge'])
 			self.cth_area = np.array(cth_area)
 			self.run_flow_accum_areas = 1
 		else:
 			self.run_flow_accum_areas = 0
-			cth_area = rg.add_ones('node', 'cth_area_k', dtype = float)
+			cth_area = rg.add_ones('node', 'cth_area_k', dtype=float)
 			self.cth_area = np.array(cth_area)
 			print('Not available cell area')
 		
 		# Catchment area: raster file of ceros and ones: ones represent the main cathment
 		# The area can be the model domain or any area inside the model domain
-		mask = read_esri_ascii(inputfile.fname_Mask, name = 'basin', grid = rg)[1]
+		mask = read_esri_ascii(inputfile.fname_Mask, name='basin', grid=rg)[1]
 		
 		# Reading Soil saturated hydraulic conductivity
 		if not os.path.exists(inputfile.fname_Ksat_soil):
-			rg.add_ones('node', 'Ksat_soil', dtype = float)
+			rg.add_ones('node', 'Ksat_soil', dtype=float)
 			print('Not available Soil sat. hydraulic conductivity (Ks = 1.0 [mm/h])')
 		else:
 			read_esri_ascii(inputfile.fname_Ksat_soil, name = 'Ksat_soil', grid = rg)[1]
@@ -219,57 +219,56 @@ class model_environment_status(object):
 				
 		# Reading soil depth map: raster file [mm]
 		if not os.path.exists(inputfile.fname_SoilDepth):
-			rg.add_ones('node', 'Soil_depth', dtype = float)
+			rg.add_ones('node', 'Soil_depth', dtype=float)
 			rg.at_node['Soil_depth'] *= 1000.0	# default value 1000 mm
 			print('Not available rooting depth, defaul value 600mm')
 		else:
-			read_esri_ascii(inputfile.fname_SoilDepth, name = 'Soil_depth', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_SoilDepth, name='Soil_depth', grid = rg)[1]
 
 		rg.at_node['Soil_depth'] *= inputfile.kDroot
 		self.Droot = np.array(rg.at_node['Soil_depth'])
 		
 		# Reading residual water content
 		if not os.path.exists(inputfile.fname_theta_r): 			
-			rg.add_zeros('node', 'theta_r', dtype = float)
+			rg.add_zeros('node', 'theta_r', dtype=float)
 			rg.at_node['theta_r'][:] += 0.025
 			print('Not available residual moisture content (theta_r)')
 		else:
-			read_esri_ascii(inputfile.fname_theta_r, name = 'theta_r', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_theta_r, name='theta_r', grid = rg)[1]
 
 		
 		# Reading Wilting point field
 		if not os.path.exists(inputfile.fname_wp):
-			rg.add_ones('node', 'wilting_point', dtype = float)
+			rg.add_ones('node', 'wilting_point', dtype=float)
 			rg.at_node['wilting_point'][:] *= 0.05
 			print('Not available wilting point, default: wp = 0.02')
 		else:
-			read_esri_ascii(inputfile.fname_wp, name = 'wilting_point', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_wp, name='wilting_point', grid = rg)[1]
 				
 		# Read Saturated water content (porosity)
 		if not os.path.exists(inputfile.fname_n): 
-			rg.add_ones('node', 'saturated_water_content', dtype = float)*0.40 # Under unsaturated conditions [mm]
+			rg.add_ones('node', 'saturated_water_content', dtype=float)*0.40 # Under unsaturated conditions [mm]
 			rg.at_node['saturated_water_content'][:] *= 0.40
 			print('Not available porosity')
 		else:
-			read_esri_ascii(inputfile.fname_n, name = 'saturated_water_content', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_n, name='saturated_water_content', grid = rg)[1]
 		
-		# Reading available water content: raster file
+		# Reading available water content: raster file		
 		if not os.path.exists(inputfile.fname_AWC):
-			rg.add_ones('node', 'AWC', dtype = float)*0.10
+			rg.add_ones('node', 'AWC', dtype=float)*0.10
 			print('Not available Available Water Content (AWC=0.10)')
 		else:
-			read_esri_ascii(inputfile.fname_AWC, name = 'AWC', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_AWC, name='AWC', grid=rg)[1]
 			rg.at_node['AWC'] = rg.at_node['AWC']*inputfile.kAWC
-		
-			
+					
 		# Exponent for soil moisture - matrix potential relation
 		# Rawls (1982), and Clapp and Hornberger (1978)
 		# it can be n for vanGenutchen
 		if not os.path.exists(inputfile.fname_b_SOIL):			
-			rg.add_zeros('node', 'b_SOIL', dtype = float)
+			rg.add_zeros('node', 'b_SOIL', dtype=float)
 			print('Not available power parameter dor water retention')
 		else:
-			read_esri_ascii(inputfile.fname_b_SOIL, name = 'b_SOIL', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_b_SOIL, name='b_SOIL', grid=rg)[1]
 	
 		# air-entry/saturated capillary potential, [mm]
 		if not os.path.exists(inputfile.fname_PSI):
@@ -278,15 +277,15 @@ class model_environment_status(object):
 							/ (rg.at_node['b_SOIL']+2.5))
 			print('Not available PSI')
 		else:
-			read_esri_ascii(inputfile.fname_PSI, name = 'PSI', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_PSI, name='PSI', grid=rg)[1]
 		
 		# Read Kc for transforming RET to PET
 		if not os.path.exists(inputfile.fname_TSKc): 
-			Kc = rg.add_ones('node', 'Kc', dtype = float)
+			Kc = rg.add_ones('node', 'Kc', dtype=float)
 			self.Kc = np.array(Kc)
 			print('Not available Kc')
 		else:
-			Kc = read_esri_ascii(inputfile.fname_TSKc, name = 'Kc', grid = rg)[1]
+			Kc = read_esri_ascii(inputfile.fname_TSKc, name='Kc', grid=rg)[1]
 			self.Kc = np.array(Kc)
 		
 		# Water bastraction component
@@ -297,11 +296,11 @@ class model_environment_status(object):
 		#read model domain of the GW model and merge it with the surface model
 		if inputfile.run_GW == 1:
 			if not os.path.exists(inputfile.fname_GWdomain):
-				(gw, gwz) = read_esri_ascii(inputfile.fname_Mask, name = 'model_domain')
+				(gw, gwz) = read_esri_ascii(inputfile.fname_Mask, name='model_domain')
 			else:
 				(gw, gwz) = read_esri_ascii(inputfile.fname_GWdomain, name = 'model_domain')
 		else:
-			(gw, gwz) = read_esri_ascii(inputfile.fname_Mask, name = 'model_domain')
+			(gw, gwz) = read_esri_ascii(inputfile.fname_Mask, name='model_domain')
 		
 		# Setting boundary conditions
 		rg.status_at_node[rg.status_at_node == rg.BC_NODE_IS_FIXED_VALUE] = rg.BC_NODE_IS_CLOSED

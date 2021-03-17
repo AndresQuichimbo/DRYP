@@ -7,7 +7,7 @@ import pandas as pd
 from components.DRYP_io import inputfile, model_environment_status
 from components.DRYP_infiltration import infiltration
 from components.DRYP_rainfall import rainfall
-from components.DRYP_abstractions import abstractions
+from components.DRYP_ABM_connector import ABMconnector
 from components.DRYP_routing import runoff_routing
 from components.DRYP_soil_layer import swbm
 from components.DRYP_Gen_Func import GlobalTimeVarPts, GlobalTimeVarAvg, GlobalGridVar
@@ -39,7 +39,7 @@ def run_DRYP(filename_input):
 	
 	# setting model components
 	rf = rainfall(data_in, env_state)
-	abc = abstractions(data_in, env_state)
+	abc = ABMconnector(data_in, env_state)
 	inf = infiltration(env_state, data_in)
 	swb = swbm(env_state, data_in)
 	swb_rip = swbm(env_state, data_in)
@@ -83,8 +83,12 @@ def run_DRYP(filename_input):
 				
 				rf.run_rainfall_one_step(t_pre, t_eto, env_state, data_in)
 				
-				abc.run_abstractions_one_step(t_pre, env_state, inputfile)
-				
+				abc.run_ABM_one_step(t_pre, env_state,
+					rf.rain, env_state.Duz, swb.tht_dt, env_state.fc,
+					env_state.grid.at_node['wilting_point'],
+					env_state.SZgrid.at_node['water_table__elevation'],
+					)
+					
 				rf.rain += abc.auz
 				
 				inf.run_infiltration_one_step(rf, env_state, data_in)

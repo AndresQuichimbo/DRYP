@@ -1,0 +1,26 @@
+******* Reading Input Files *******
+Not available river width: W = 10.0 [m]
+Not available river bottom elevation: z_riv = z_surf-5.0 [m]
+Not available cell area
+Not available Kc
+Not available Aquifer Specific yield: Sy = 0.01
+Not available aquifer bottom elevation: zb = 0.0 m
+Not available aquifer SZ_Ksat (Ks_gw = 0.1 [m/dt])
+Not available constant head boundary conditions
+Not available channel Ksat: Ksat_ch = 1.0 [mm/h])
+Not available soil moisture: theta = 1.01*wp [-])
+******* Output Directory *******
+Directory  ../GW_1D/outputs  already exists
+Directory  ../GW_1D/outputs/TimeFrames  already exists
+Not available water extractions file
+                                     DrylandModel
+0  Total Precipitation.......780.000 mm (100.00%)
+1  Total Infiltration........780.000 mm (100.00%)
+2      Total Excess..............0.000 mm (0.00%)
+3      Total Transmission Losses.0.000 mm (0.00%)
+4   Total Evapot. Hills Slop..435.190 mm (55.79%)
+5   Total Diffuse Recharge....285.857 mm (36.65%)
+6     Total Discharge...........27.842 mm (3.57%)
+Wrote profile results to run_model.py.lprof
+Timer unit: 1e-07 s
+

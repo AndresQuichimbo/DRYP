@@ -23,8 +23,8 @@ class gwflow_EFD(object):
 		
 	def __init__(self, env_state, data_in):
 	
-		env_state.SZgrid.add_zeros('node', 'recharge', dtype = float)		
-		env_state.SZgrid.add_zeros('node', 'discharge', dtype = float)		
+		env_state.SZgrid.add_zeros('node', 'recharge', dtype=float)		
+		env_state.SZgrid.add_zeros('node', 'discharge', dtype=float)		
 		env_state.SZgrid.add_zeros('node', 'river_stage__elevation', dtype=float)		
 		env_state.SZgrid.add_zeros('node', 'water_storage_anomaly', dtype=float)
 		
@@ -42,6 +42,9 @@ class gwflow_EFD(object):
 		
 		self.hriv = np.array(env_state.SZgrid.at_node['water_table__elevation'])		
 		self.wte_dt = np.array(env_state.SZgrid.at_node['water_table__elevation'])
+		dzdl = env_state.SZgrid.calc_grad_at_link(env_state.SZgrid.at_node['topographic__elevation'])
+		self.dzdl = np.where(np.abs(dzdl) > 0.10, 0.001, 1.0)
+		self.zm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'topographic__elevation')
 		
 	def add_second_layer_gw(self, env_state, thickness, Ksat, Sy, Ss):	
 		# thickness:	Thickness of the deep aquifer
@@ -404,6 +407,7 @@ class gwflow_EFD(object):
 				* env_state.grid.at_node['river_length'])
 		W =  Ariv / env_state.SZgrid.dx		
 		kriv = np.where(Ariv == 0, 0, 1/Ariv)
+		stage = env_state.grid.at_node['Q_ini'] * kriv
 		kaq = 1/A
 		
 		Tch = exponential_T(env_state.grid.at_node['SS_loss'], STR_RIVER,
@@ -432,10 +436,9 @@ class gwflow_EFD(object):
 			# Calculate conductivity for river cells			
 			hm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'water_table__elevation')
 			#bm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'BOT')			
-			zm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'topographic__elevation')
 			
 			# Calculate transmissivity
-			T = exponential_T(self.Ksat, f, zm, hm)
+			T = exponential_T(self.Ksat*self.dzdl, f, self.zm, hm)
 			#T = (1.0/ns)*np.power(1-(zm-hm)/(bm-zm),ns)
 			
 			# Calculate the hydraulic gradients			
@@ -461,7 +464,7 @@ class gwflow_EFD(object):
 				env_state.grid.at_node['river_topo_elevation'], self.hriv)
 				
 			qs_riv = -(Tch*(env_state.SZgrid.at_node['water_table__elevation']
-				- self.hriv)*2 / (env_state.SZgrid.dx + W))
+				- (self.hriv+stage))*2 / (env_state.SZgrid.dx + W))
 			
 			dqsdxy += kaq*qs_riv
 			
@@ -566,13 +569,19 @@ def fun_update_UZ_SZ_depth(env_state, tht_dt, rtht_dt, Droot):
 
 	h_aux = h0+dh-(env_state.grid.at_node['topographic__elevation']-Droot)
 	
-	alpha = np.where((np.abs(ruz)-np.abs(dh)) > 0,0,-1)*np.where(dh >= 0,1,-1)*np.where(ruz > 0,0,1)
-			
-	beta = np.where((np.abs(ruz)-np.abs(dh)) > 0,0,1)*np.where(dh >= 0,1,-1)*np.where(ruz > 0,0,1)
+	dhr_aux = np.abs(ruz)-np.abs(dh)
 	
-	gama = np.where((np.abs(ruz)-np.abs(dh)) > 0,1,0)
-	gama = np.where(dh > 0, gama, 1-gama)*np.where(h_aux >= 0,0,1)
-	gama = np.where(h_aux >= 0,gama,1)
+	dh_aux = np.where(dh >= 0,1,-1)
+	
+	alpha = -1.*np.less_equal(dhr_aux, 0)*dh_aux*np.less_equal(ruz, 0)
+			
+	beta = np.less_equal(dhr_aux, 0)*dh_aux*np.less_equal(ruz, 0)
+	
+	gama = np.where(dhr_aux > 0, 1, 0)
+	
+	gama = np.where(dh > 0, gama, 1-gama)*np.less(h_aux, 0)
+	
+	gama[h_aux < 0] = 1
 			
 	dht = ((env_state.SZgrid.at_node['water_storage_anomaly']
 		+ ruz*(alpha*env_state.SZgrid.at_node['SZ_Sy'] + beta*dtht))

@@ -81,8 +81,7 @@ class abstractions(object):
 					self.auz = np.ones(env_state.grid_size)*self.fabc['AUZ'][self.idateabc[t_abc]]
 					self.asz = np.ones(env_state.grid_size)*self.fabc['ASZ'][self.idateabc[t_abc]]
 			self.rain_day_before = 1
-			
-		
+				
 	
 	def work_out_stable_timestep(self,):
 		"""
