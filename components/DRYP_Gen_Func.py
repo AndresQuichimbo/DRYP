@@ -36,7 +36,7 @@ class GlobalTimeVarPts:
 		self.FRC = []
 		self.WTE = []
 		self.HEAD = []	# hydraulic head/water table bottom layer
-
+		self.WRSI = []
 	
 	def extract_point_var_pre(self,nodes,pre):
 		self.PRE.append(pre.rain[nodes])	
@@ -54,6 +54,7 @@ class GlobalTimeVarPts:
 		self.AET.append(swb.aet_dt[nodes])		
 		self.THT.append(swb.tht_dt[nodes])		
 		self.PCL.append(swb.pcl_dt[nodes])
+		self.WRSI.append(swb.WRSI[nodes])
 	
 	def extract_point_var_SZ(self,nodes,gw):
 		self.WTE.append(gw.wte_dt[nodes])
@@ -62,6 +63,32 @@ class GlobalTimeVarPts:
 		self.HEAD.append(grid.at_node['HEAD_2'][nodes])
 	
 	def save_point_var(self,fname,time):
+		# precipitation
+		if self.INF:
+			df = pd.DataFrame()
+			df['Date'] = time
+			data = np.transpose(self.PRE)
+			
+			for i in range(len(data)):			
+				field = 'PRE_'+str(i)				
+				df[field] = data[i,:]
+			
+			fname_out = fname+'_PRE.csv'			
+			os.remove(fname_out) if os.path.exists(fname_out) else None			
+			df.to_csv(fname_out,index = False)
+			
+			df = pd.DataFrame()
+			df['Date'] = time
+			data = np.transpose(self.PET)
+			
+			for i in range(len(data)):			
+				field = 'PET_'+str(i)				
+				df[field] = data[i,:]
+			
+			fname_out = fname+'_PET.csv'			
+			os.remove(fname_out) if os.path.exists(fname_out) else None			
+			df.to_csv(fname_out,index = False)
+		
 		# infiltration
 		if self.INF:
 			df = pd.DataFrame()
@@ -127,6 +154,19 @@ class GlobalTimeVarPts:
 				df[field] = data[i,:]
 			
 			fname_out = fname+'_RCH.csv'			
+			os.remove(fname_out) if os.path.exists(fname_out) else None			
+			df.to_csv(fname_out,index = False)
+			
+			# Ratio of seasonal actual crop evapotranspiration			
+			df = pd.DataFrame()			
+			df['Date'] = time			
+			data = np.transpose(self.WRSI)
+			
+			for i in range(len(data)):			
+				field = 'WRSI_'+str(i)				
+				df[field] = data[i,:]
+			
+			fname_out = fname+'_WRSI.csv'			
 			os.remove(fname_out) if os.path.exists(fname_out) else None			
 			df.to_csv(fname_out,index = False)
 		
@@ -501,7 +541,7 @@ class GlobalGridVar:
 			var_time_name.append(var_grid_name[nodes])
 
 
-def check_mass_balance(outavg,outOF):	
+def check_mass_balance(outavg, outOF, outavg_AER):	
 	data_summary = []	
 	per_PRE = 100*np.sum(outavg.PRE)/np.sum(outavg.PRE)
 	per_AET = 100*np.sum(outavg.AET)/np.sum(outavg.PRE)
@@ -510,9 +550,9 @@ def check_mass_balance(outavg,outOF):
 	per_TLS = 100*np.sum(outavg.TLS)/np.sum(outavg.PRE)
 	per_PCL = 100*np.sum(outavg.PCL)/np.sum(outavg.PRE)
 	
-	if  outavg.AER:
-		per_AER = 100*np.sum(outavg.AER)/np.sum(outavg.PRE)
-		per_FRC = 100*np.sum(outavg.FRC)/np.sum(outavg.PRE)
+	if  outavg_AER:
+		per_AER = 100*np.sum(outavg_AER.AET)/np.sum(outavg.PRE)
+		per_FRC = 100*np.sum(outavg_AER.PCL)/np.sum(outavg.PRE)
 	per_OFL = 100*np.sum(np.transpose(outOF.OFL)[0]) /np.sum(outavg.PRE)
 	
 	data_summary.append('Total Precipitation.......{:.3f} mm ({:.2f}%)'.format(np.sum(outavg.PRE),per_PRE))
@@ -520,9 +560,9 @@ def check_mass_balance(outavg,outOF):
 	data_summary.append('Total Excess..............{:.3f} mm ({:.2f}%)'.format(np.sum(outavg.EXS),per_EXS))
 	data_summary.append('Total Transmission Losses.{:.3f} mm ({:.2f}%)'.format(np.sum(outavg.TLS),per_TLS))
 	data_summary.append('Total Evapot. Hills Slop..{:.3f} mm ({:.2f}%)'.format(np.sum(outavg.AET),per_AET))
-	if  outavg.AER:
-		data_summary.append('Total Riparean AET .......{:.3f} mm ({:.2f}%)'.format(np.sum(outavg.AER),per_AER))
-		data_summary.append('Total Focused Recharge....{:.3f} mm ({:.2f}%)'.format(np.sum(outavg.FRC),per_FRC))
+	if  outavg_AER:
+		data_summary.append('Total Riparean AET .......{:.3f} mm ({:.2f}%)'.format(np.sum(outavg_AER.AET),per_AER))
+		data_summary.append('Total Focused Recharge....{:.3f} mm ({:.2f}%)'.format(np.sum(outavg_AER.PCL),per_FRC))
 	data_summary.append('Total Diffuse Recharge....{:.3f} mm ({:.2f}%)'.format(np.sum(outavg.PCL),per_PCL))
 	data_summary.append('Total Discharge...........{:.3f} mm ({:.2f}%)'.format(np.sum(np.transpose(outOF.OFL)[0]) ,per_OFL))
 	

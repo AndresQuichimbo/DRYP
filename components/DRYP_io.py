@@ -479,6 +479,9 @@ class model_environment_status(object):
 		self.area_catch_factor = (rg.at_node['cth_area_k']
 			/ np.sum(rg.at_node['cth_area_k'][self.basin_nodes]))
 		
+		self.area_river_factor = np.zeros(len(z))
+		self.area_river_factor[self.river_ids_nodes] = 1 / np.sum(rg.at_node['cth_area_k'][self.basin_nodes])
+		
 		if rg.dx > river_banks:
 		
 			self.area_cells_hills[self.riv_nodes] = (

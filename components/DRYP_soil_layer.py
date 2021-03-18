@@ -16,6 +16,7 @@ class swbm(object):
 		self.sro_dt = np.zeros(env_state.grid_size)		
 		self.tht_dt = np.array(env_state.grid.at_node['Soil_Moisture'][:])		
 		self.pcl_dt = np.zeros(env_state.grid_size)
+		self.WRSI = np.zeros(env_state.grid_size)
 		self.Duz = env_state.Duz		
 		self.L_0 = env_state.Duz*self.tht_dt
 	
@@ -59,7 +60,8 @@ class swbm(object):
 		#PET = np.where(PET < 0,0.0,PET)		
 		L_0 = self.L_0[act_nodes]		
 		SMD_0 = env_state.SMD_0[act_nodes]		
-		ds = env_state.Duz[act_nodes]		
+		#ds = env_state.Duz[act_nodes]
+		ds = self.Duz[act_nodes]
 		fs = env_state.grid.at_node['saturated_water_content'][act_nodes]		
 		fc = env_state.fc[act_nodes]		
 		wp = env_state.grid.at_node['wilting_point'][act_nodes]		
@@ -76,7 +78,8 @@ class swbm(object):
 		self.aet_dt[act_nodes] = np.array(AET)		
 		self.pcl_dt[act_nodes] = np.array(D)		
 		self.tht_dt[act_nodes] = np.array(L/ds)		
-		self.sro_dt[act_nodes] = RO		
+		self.sro_dt[act_nodes] = RO
+		self.WRSI[act_nodes] = np.where(PET == 0, 0, AET/PET)
 		self.gwe_dt = pet - self.aet_dt		
 		self.L_0[act_nodes] = np.array(L)
 	

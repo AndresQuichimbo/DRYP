@@ -48,10 +48,11 @@ def run_DRYP(filename_input):
 	
 	# Output variables and location
 	outavg = GlobalTimeVarAvg(env_state.area_catch_factor)
+	outavg_rip = GlobalTimeVarAvg(env_state.area_river_factor)
 	outpts = GlobalTimeVarPts()
 	rip_env_state = GlobalGridVar(env_state.grid)
 	state_month = GlobalGridVar(env_state.grid)
-		
+	
 	t = 0	
 	t_eto = 0	
 	t_pre = 0
@@ -100,7 +101,7 @@ def run_DRYP(filename_input):
 				
 				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
 				
-				rip_inf_dt = (inf.inf_dt+ro.tls_dt
+				rip_inf_dt = (inf.inf_dt+ro.tls_flow_dt*1000
 					/ np.where(env_state.area_cells_banks <= 0, 1,
 					env_state.area_cells_banks)
 					)
@@ -108,9 +109,10 @@ def run_DRYP(filename_input):
 				swb_rip.run_swbm_one_step(rip_inf_dt, rf.PET, env_state.Kc,
 						env_state.grid.at_node['Ksat_ch'], env_state,
 						data_in, env_state.river_ids_nodes)
-				
-				rip_env_state.pcl_dt = swb_rip.pcl_dt * env_state.area_cells_banks/env_state.area_cells
-				rip_env_state.aet_dt = swb_rip.aet_dt * env_state.area_cells_banks/env_state.area_cells
+				swb_rip.pcl_dt *= env_state.area_cells_banks/env_state.area_cells
+				swb_rip.aet_dt *= env_state.area_cells_banks/env_state.area_cells
+				rip_env_state.pcl_dt = swb_rip.pcl_dt
+				rip_env_state.aet_dt = swb_rip.aet_dt
 				swb.PCL_dt = swb.pcl_dt * env_state.area_cells_hills/env_state.area_cells
 				swb.AET_dt = swb.aet_dt * env_state.area_cells_hills/env_state.area_cells
 				rech = swb.PCL_dt + rip_env_state.pcl_dt - abc.asz# [mm/dt]
@@ -147,7 +149,7 @@ def run_DRYP(filename_input):
 				outavg.extract_avg_var_pre(env_state.basin_nodes,rf)				
 				outavg.extract_avg_var_UZ_inf(env_state.basin_nodes,inf)
 				outavg.extract_avg_var_UZ_swb(env_state.basin_nodes,swb)
-				#outavg.extract_avg_var_UZ_swb(env_state.basin_nodes,swb_rip)
+				outavg_rip.extract_avg_var_UZ_swb(env_state.basin_nodes,swb_rip)
 				outavg.extract_avg_var_OF(env_state.basin_nodes,ro)
 				outavg.extract_avg_var_SZ(env_state.basin_nodes,gw)
 				
@@ -162,10 +164,11 @@ def run_DRYP(filename_input):
 			t_eto += 1		
 		t += 1
 				
-	outavg.save_avg_var(env_state.fnameTS_avg+'.csv', rf.date_sim_dt)	
+	outavg.save_avg_var(env_state.fnameTS_avg+'.csv', rf.date_sim_dt)
+	outavg_rip.save_avg_var(env_state.fnameTS_avg+'rip.csv', rf.date_sim_dt)
 	outpts.save_point_var(env_state.fnameTS_OF, rf.date_sim_dt)	
 	
-	check_mass_balance(outavg, outpts)
+	check_mass_balance(outavg, outpts, outavg_rip)
 	
 	fname_out = env_state.fnameTS_avg + '_wte_ini.asc'	
 	save_map_to_rastergrid(env_state.SZgrid, 'water_table__elevation', fname_out)
