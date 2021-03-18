@@ -57,8 +57,13 @@ class ABMconnector(object):
 			# add any additional function to modifed any axx states
 			# or import a function
 			
-			#aof, auz, asz = ABM()
+			# Soil moisture deficit
+			#dtheta = (theta_fc-theta)
+			#dtheta[dtheta < 0] = 0
+			#SMD = Duz*dtheta
 			
+			#aof, auz, asz = ABM()
+			#to pass variables to other components
 			#self.aof = aof
 			#self.auz = auz
 			#self.asz = asz
