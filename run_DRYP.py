@@ -66,7 +66,7 @@ def run_DRYP(filename_input):
 	aet_mb = []
 
 	rch_agg = np.zeros(len(swb.L_0))
-	day = rf.date_sim_dt[0].day+1
+	dt_GW = np.int(data_in.dtUZ)
 	
 	while t < rf.t_end:
 	
@@ -120,30 +120,23 @@ def run_DRYP(filename_input):
 				rch_agg += (np.array(rech-swb.gwe_dt)*0.001) #[m/dt]
 				
 				# Water balance storage and flow
+				str_gw_t = storage_uz_sz(env_state)
 				pre_mb.append(np.sum(rf.rain[env_state.grid.core_nodes]))
 				uzs_mb.append(np.sum(swb.L_0[env_state.grid.core_nodes]))
 				aet_mb.append(np.sum((rip_env_state.aet_dt+swb.AET_dt)[env_state.grid.core_nodes]))
 				rch_mb.append(np.sum(env_state.SZgrid.at_node['recharge'][env_state.grid.core_nodes]))				
-				
-				str_gw_t = storage_uz_sz(env_state)
-				
-				if daily == 1:
-					env_state.SZgrid.at_node['discharge'][:] = 0.0
-					env_state.SZgrid.at_node['recharge'][:] = (rech-swb.gwe_dt)*0.001
-					#gw.run_one_step_gw_R(env_state,1.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001)
-					gw.run_one_step_gw_var_T(env_state,1.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001,20)
-					
-				else:
-					if day == rf.date_sim_dt[t_pre].day:
-						env_state.SZgrid.at_node['discharge'][:] = 0.0
-						env_state.SZgrid.at_node['recharge'][:] = rch_agg
-						#gw.run_one_step_gw(env_state,24.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001)
-						gw.run_one_step_gw_var_T(env_state,24.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001,50)
-						rch_agg = np.zeros(len(swb.L_0))
-						day = (rf.date_sim_dt[t_pre] + timedelta(days = 1)).day
-				
-				gws_mb.append(str_gw_t)				
 				dis_mb.append(np.sum(env_state.SZgrid.at_node['discharge'][env_state.grid.core_nodes]))
+				gws_mb.append(str_gw_t)				
+				
+				if dt_GW == data_in.dtSZ:
+					env_state.SZgrid.at_node['discharge'][:] = 0.0
+					env_state.SZgrid.at_node['recharge'][:] = rch_agg
+					#gw.run_one_step_gw(env_state,24.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001)
+					gw.run_one_step_gw_var_T(env_state,data_in.dtSZ/60,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001,50)
+					rch_agg = np.zeros(len(swb.L_0))
+					dt_GW = np.int(data_in.dtUZ)
+					
+				dt_GW += np.int(data_in.dtUZ)				
 				
 				#Extract average state and fluxes				
 				outavg.extract_avg_var_pre(env_state.basin_nodes,rf)				

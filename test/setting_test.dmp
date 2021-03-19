@@ -4,12 +4,12 @@ Initial date for simulation (YYYY MM DD) ........(2)
 2000 1 1
 Initial date for simulation (YYYY MM DD) ........(4)
 2001 1 3
-Activate SUBDAILY time step: 1 active 0 disable..(6)
-0
 OF Time step - dt_Pre (min) - (1440 for daily)...(8)
 60
-GW Time step -----------------------------------(10)
-0
+UZ Time step - dt_Pre (min) - (1440 for daily)..(10)
+60
+SZ Time step - dt_Pre (min) - (1440 for daily)..(12)
+60
 ============ MODEL READING OPTIONS ================
 Read Precipitation from NETCF file..............(13)
 0

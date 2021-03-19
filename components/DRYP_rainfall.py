@@ -7,11 +7,11 @@ class rainfall(object):
 	def __init__(self, inputfile,env_state):
 		if inputfile.first_read == 1:
 			t_end = inputfile.Sim_period.days
-			if inputfile.dtUZ_pre != 60:
-				date_sim_m = pd.date_range(inputfile.ini_date, periods = t_end*inputfile.dt_hourly*inputfile.dt_sub_hourly, freq = str(np.int(inputfile.dtUZ_pre))+'min')
+			if inputfile.dtUZ != 60:
+				date_sim_m = pd.date_range(inputfile.ini_date, periods = t_end*inputfile.dt_hourly*inputfile.dt_sub_hourly, freq = str(np.int(inputfile.dtUZ))+'min')
 			freq_dt = 'H'
-			if inputfile.dtUZ_pre > 60:
-				freq_dt = str(np.int(inputfile.dtUZ_pre/60))+'H'
+			if inputfile.dtUZ > 60:
+				freq_dt = str(np.int(inputfile.dtUZ/60))+'H'
 			date_sim_h = pd.date_range(inputfile.ini_date, periods = t_end*inputfile.dt_hourly, freq = freq_dt)
 			date_sim_d = pd.date_range(inputfile.ini_date, periods = t_end, freq = 'd')
 			if t_end <= 0:
@@ -47,14 +47,14 @@ class rainfall(object):
 			else:
 				dataETo = pd.read_csv(inputfile.fname_TSMeteo)
 				dataETo["Date"] = pd.to_datetime(dataETo['Date'])
-				if inputfile.dtUZ_pre > 60:
+				if inputfile.dtUZ > 60:
 					dataETo.index = pd.DatetimeIndex(dataETo['Date'])
 					dataETo = (dataETo.resample(inputfile.Agg_method).sum()).reset_index()
 				time_ETo = dataETo["Date"]
 			
 			# Time periods-----------------------------------------------------------------------
 			idate_aux = np.where((time_pre < inputfile.end_datet) & (time_pre >= inputfile.ini_date))[0]
-			if inputfile.dtUZ_pre != 60:
+			if inputfile.dtUZ != 60:
 				idatepre = np.zeros(len(date_sim_m))
 				idate_pre = date_sim_m.isin(time_pre)
 			else:

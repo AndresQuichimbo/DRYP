@@ -36,32 +36,32 @@ class runoff_routing(object):
 		# aof:		River flow abstraction [mm]
 		env_state.grid.at_node['AOF'][:] = aof
 		act_nodes = env_state.act_nodes
-		if data_in.daily_model == 0:
-			env_state.grid.at_node['runoff'][act_nodes] = (inf.exs_dt[act_nodes]*0.001
-											* env_state.cth_area[act_nodes]
-											+ env_state.grid.at_node['Base_flow'][act_nodes]
-											+ env_state.SZgrid.at_node['discharge'][act_nodes]
-											)
-			check_dry_conditions = len(np.where((env_state.grid.at_node['runoff'][act_nodes]
-				+ env_state.grid.at_node['Q_ini'][act_nodes]
-				+ env_state.grid.at_node['Base_flow'][act_nodes]) > 0.0)[0])
-			
-			if check_dry_conditions > 0:
-				self.fa.accumulate_flow(update_flow_director = env_state.act_update_flow_director)
-				if env_state.run_flow_accum_areas == 0:			
-					self.dis_dt[act_nodes] = (1000* np.array(
-						env_state.grid.at_node["surface_water__discharge"][act_nodes]
-						/ (env_state.grid.at_node["drainage_area"][act_nodes])))							
-				else:				
-					self.dis_dt[act_nodes] = (1000.*np.array(
-						env_state.grid.at_node["surface_water__discharge"][act_nodes]
-						/ env_state.area_discharge[act_nodes]))
-			else:
-				env_state.grid.at_node['Transmission_losses'][env_state.river_ids_nodes] = 0.0				
-				self.dis_dt[:] = 0				
-				noflow = 0
-			self.tls_dt = env_state.grid.at_node['Transmission_losses']*1000.0/env_state.area_cells
-			self.tls_flow_dt = env_state.grid.at_node['Transmission_losses']
+		
+		env_state.grid.at_node['runoff'][act_nodes] = (inf.exs_dt[act_nodes]*0.001
+										* env_state.cth_area[act_nodes]
+										+ env_state.grid.at_node['Base_flow'][act_nodes]
+										+ env_state.SZgrid.at_node['discharge'][act_nodes]
+										)
+		check_dry_conditions = len(np.where((env_state.grid.at_node['runoff'][act_nodes]
+			+ env_state.grid.at_node['Q_ini'][act_nodes]
+			+ env_state.grid.at_node['Base_flow'][act_nodes]) > 0.0)[0])
+		
+		if check_dry_conditions > 0:
+			self.fa.accumulate_flow(update_flow_director = env_state.act_update_flow_director)
+			if env_state.run_flow_accum_areas == 0:			
+				self.dis_dt[act_nodes] = (1000* np.array(
+					env_state.grid.at_node["surface_water__discharge"][act_nodes]
+					/ (env_state.grid.at_node["drainage_area"][act_nodes])))							
+			else:				
+				self.dis_dt[act_nodes] = (1000.*np.array(
+					env_state.grid.at_node["surface_water__discharge"][act_nodes]
+					/ env_state.area_discharge[act_nodes]))
+		else:
+			env_state.grid.at_node['Transmission_losses'][env_state.river_ids_nodes] = 0.0				
+			self.dis_dt[:] = 0				
+			noflow = 0
+		self.tls_dt = env_state.grid.at_node['Transmission_losses']*1000.0/env_state.area_cells
+		self.tls_flow_dt = env_state.grid.at_node['Transmission_losses']
 			
 # ===================================================================
 # Transmission losses functions

@@ -1,16 +1,10 @@
 
 import os
-
 import numpy as np
-
 from landlab import RasterModelGrid
-
 from landlab.grid.mappers import map_mean_of_link_nodes_to_link
-
 from landlab.grid.mappers import map_max_of_link_nodes_to_link
-
 from landlab.grid.mappers import map_min_of_link_nodes_to_link
-
 from landlab.io import read_esri_ascii
 
 #Global variables
@@ -447,8 +441,7 @@ class gwflow_EFD(object):
 			# mean hydraulic head at the face of the of the patch			
 			qs = np.zeros(len(self.Ksat))
 					
-			# Calculate flux per unit length at each face
-			
+			# Calculate flux per unit length at each face			
 			#qs[act_links] = -self.Ksat[act_links]*D[act_links]*dhdl[act_links]
 			qs[act_links] = -T[act_links]*dhdl[act_links]
 			

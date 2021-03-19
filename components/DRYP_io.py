@@ -72,8 +72,9 @@ class inputfile(object):
 		
 		self.ini_date = datetime.strptime(fsimpar.DWAPM_SET[2], '%Y %m %d')
 		self.end_datet = datetime.strptime(fsimpar.DWAPM_SET[4], '%Y %m %d')
-		self.daily_model = int(fsimpar.DWAPM_SET[6])
-		self.dtUZ_pre = float(fsimpar.DWAPM_SET[8])
+		self.dtOF = int(fsimpar.DWAPM_SET[6])
+		self.dtUZ = float(fsimpar.DWAPM_SET[8])
+		self.dtSZ = float(fsimpar.DWAPM_SET[10])
 		
 		self.netcf_pre = int(fsimpar.DWAPM_SET[13])
 		self.netcf_ETo = int(fsimpar.DWAPM_SET[15])
@@ -108,20 +109,20 @@ class inputfile(object):
 		#self.kpLoss = float(fsimpar.DWAPM_SET[51])
 		#self.Ktr = float(fsimpar.DWAPM_SET[51])
 		
-		if self.dtUZ_pre > 60:
+		if self.dtUZ > 60:
 			self.dt_sub_hourly = 1
-			self.dt_hourly = np.int(1440/self.dtUZ_pre)
-			self.unit_sim = self.dtUZ_pre/1440		#inputs ks[mm/d]
-			self.unit_sim_k = self.dtUZ_pre*24/1440	#inputs ks[mm/d]
-			self.kT_units = self.dtUZ_pre/60
+			self.dt_hourly = np.int(1440/self.dtUZ)
+			self.unit_sim = self.dtUZ/1440		#inputs ks[mm/d]
+			self.unit_sim_k = self.dtUZ*24/1440	#inputs ks[mm/d]
+			self.kT_units = self.dtUZ/60
 		else:
-			self.dt_sub_hourly = np.int(60/self.dtUZ_pre)
+			self.dt_sub_hourly = np.int(60/self.dtUZ)
 			self.dt_hourly = 24
-			self.unit_sim = self.dtUZ_pre/60		#inputs ks[mm/d]
-			self.unit_sim_k = self.dtUZ_pre/60		#inputs ks[mm/d]
-			self.kT_units = self.dtUZ_pre/60
-		self.unit_change_manning = (1/(self.dtUZ_pre*60))**(3/5)
-		self.Agg_method = str(self.dtUZ_pre)+'T'
+			self.unit_sim = self.dtUZ/60		#inputs ks[mm/d]
+			self.unit_sim_k = self.dtUZ/60		#inputs ks[mm/d]
+			self.kT_units = self.dtUZ/60
+		self.unit_change_manning = (1/(self.dtUZ*60))**(3/5)
+		self.Agg_method = str(self.dtUZ)+'T'
 		self.kpKloss = 1.0							# initial Kloss increase for TL
 		self.T_str_channel = 0.0			# duration of initial Kloss increase for TL
 		self.Kloss = self.Kloss*self.unit_sim_k
@@ -381,7 +382,7 @@ class model_environment_status(object):
 		else:
 	
 			h = z - rg.at_node['Soil_depth']*0.001
-			
+		
 		self.Duz = np.where((z - h) >= 0, z-h, 0)*1000.0
 		self.Duz = np.where(self.Duz < rg.at_node['Soil_depth'], self.Duz, rg.at_node['Soil_depth'])
 		rg.add_zeros('node', 'head_difference', dtype = float)
@@ -522,7 +523,7 @@ class model_environment_status(object):
 		self.fnameTS_OF  = inputfile.DirOutput+'/' + inputfile.Mname + '_OF_'
 		self.fnameTS_UZ  = inputfile.DirOutput+'/' + inputfile.Mname + '_UZ_'
 		self.fnameTS_GW  = inputfile.DirOutput+'/' + inputfile.Mname + '_GW_'
-
+		
 	# Find coordinates of points in model components
 	def points_output(self, inputfile):
 		"""

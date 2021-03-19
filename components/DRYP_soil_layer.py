@@ -70,7 +70,7 @@ class swbm(object):
 		self.sro_dt *= 0.0		
 		self.pcl_dt *= 0.0
 			
-		if data_in.dtUZ_pre >= 1440:				
+		if data_in.dtUZ >= 1440:				
 			AET, SMD_dt, D, L, RO = SWBM(inf_dt,PET,Kc,L_0,SMD_0,ds,fs,fc,wp)				
 		else:				
 			AET, SMD_dt, D, L, RO = SWBMh(inf_dt,PET,Kc,L_0,SMD_0,ds,fs,fc,wp,c,Ks)
