@@ -18,7 +18,7 @@ class infiltration(object):
 		self.PSI_f = np.array(env_state.grid.at_node['PSI'][act_nodes])
 		# Schaake infiltration approach		
 		if data_in.inf_method == 0:		
-			delta_time = data_in.dtUZ_pre*60/86400			
+			delta_time = data_in.dtUZ*60/86400			
 			ks_ref = 7.2*data_in.unit_sim_k #mm/h			
 			ga_kdt = 1.0-np.exp(-data_in.kdt_r*delta_time*self.K_sat/ks_ref)			
 			self.args = ga_kdt

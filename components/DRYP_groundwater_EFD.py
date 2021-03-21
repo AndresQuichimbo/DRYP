@@ -513,11 +513,12 @@ class gwflow_EFD(object):
 		
 		env_state.SZgrid.at_node['discharge'][:] *= (1/dt)
 		
-		env_state.grid.at_node['riv_sat_deficit'][:] = (np.power(env_state.grid.dx, 2)
-				* np.array(env_state.grid.at_node['topographic__elevation']
+		env_state.grid.at_node['riv_sat_deficit'][:] = np.power(env_state.grid.dx,2)\
+				* np.array(env_state.grid.at_node['river_topo_elevation'][:]
 				- env_state.SZgrid.at_node['water_table__elevation'][:])
-				)
-				
+		
+		env_state.grid.at_node['riv_sat_deficit'][env_state.grid.at_node['riv_sat_deficit'][:] < 0] = 0.0
+			
 		pass
 	
 	def SZ_potential_ET(self, env_state, pet_sz):	

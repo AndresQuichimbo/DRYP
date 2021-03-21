@@ -88,8 +88,7 @@ class inputfile(object):
 		self.print_t = int(fsimpar.DWAPM_SET[43])
 		self.print_tgw = int(fsimpar.DWAPM_SET[33])
 		self.print_maps = int(fsimpar.DWAPM_SET[41])
-		self.print_maps_tn = int(fsimpar.DWAPM_SET[39])
-		
+		self.print_maps_tn = int(fsimpar.DWAPM_SET[39])		
 		
 		self.kdt_r = float(fsimpar.DWAPM_SET[46])
 		self.kDroot = float(fsimpar.DWAPM_SET[48])	# k for soil depth
@@ -158,7 +157,7 @@ class model_environment_status(object):
 			#riv_len = rg.add_ones('node', 'river_length', dtype = float)*rg.dx
 			print('All cells are considered rivers with length of grid size')
 		
-		riv = rg.add_ones('node', 'river', dtype = float)
+		riv = rg.add_ones('node', 'river', dtype=int)
 		riv[np.where(rg.at_node['river_length'][:] <= 0)[0]] = 0
 		self.riv_nodes = np.where(riv > 0)[0] # River nodes for domain arrays
 		

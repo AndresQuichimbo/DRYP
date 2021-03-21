@@ -1,6 +1,10 @@
 import os
 import numpy as np
 from landlab.components import LossyFlowAccumulator
+import pyximport; pyximport.install()
+from components.TransLoss import TransLossWVc # for windows
+#from TransLoss import TransLossWVc # for linux
+
 
 class runoff_routing(object):
 		
@@ -60,9 +64,10 @@ class runoff_routing(object):
 			env_state.grid.at_node['Transmission_losses'][env_state.river_ids_nodes] = 0.0				
 			self.dis_dt[:] = 0				
 			noflow = 0
+		
 		self.tls_dt = env_state.grid.at_node['Transmission_losses']*1000.0/env_state.area_cells
 		self.tls_flow_dt = env_state.grid.at_node['Transmission_losses']
-			
+		
 # ===================================================================
 # Transmission losses functions
 
@@ -71,13 +76,13 @@ def Create_parameter_WV(grid,Kloss):
 	grid.at_node['par_4'] = 2.0*Kloss/(grid.at_node['decay_flow']*grid.at_node['river_width'])	
 	grid.at_node['par_3'] = (grid.at_node['river_width']*grid.at_node['SS_loss']
 							/ (grid.at_node['river_width']-2*Kloss))
-	grid.at_node['base_flow_streams'] = np.zeros(len(grid.at_node['par_3']))	
+	#grid.at_node['base_flow_streams'] = np.zeros(len(grid.at_node['par_3']))	
 	return
 
 # Transmission losses function
 def TransLossWV(Qw, nodeID, linkID, grid): 
 	Qout = Qw	
-	if grid.at_node['river'][nodeID]  !=  0:		
+	if grid.at_node['river'][nodeID] != 0:		
 		Qin = (Qw+grid.at_node['Q_ini'][nodeID])
 		# abstractions
 		if Qin <= grid.at_node['AOF'][nodeID]:

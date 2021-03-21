@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-DRYP: Dryland WAter Partitioning Model
+DRYP: Dryland WAter Partitioning Model for sequence input files
 """
 import numpy as np
 import pandas as pd
 from components.DRYP_io import inputfile, model_environment_status
 from components.DRYP_infiltration import infiltration
-from components.DRYP_rainfall import rainfall
+from components.DRYP_rainfall import input_datasets_bigfiles
 from components.DRYP_ABM_connector import ABMconnector
 from components.DRYP_routing import runoff_routing
 from components.DRYP_soil_layer import swbm
@@ -38,7 +38,7 @@ def run_DRYP(filename_input):
 	env_state.points_output(data_in)
 	
 	# setting model components
-	rf = rainfall(data_in, env_state)
+	rf = input_datasets_bigfiles(data_in, env_state)
 	abc = ABMconnector(data_in, env_state)
 	inf = infiltration(env_state, data_in)
 	swb = swbm(env_state, data_in)
@@ -82,7 +82,7 @@ def run_DRYP(filename_input):
 															
 				env_state.Duz = swb.Duz
 				
-				rf.run_rainfall_one_step(t_pre, t_eto, env_state, data_in)
+				rf.run_dataset_one_step(t_pre, env_state, data_in)
 				
 				abc.run_ABM_one_step(t_pre, env_state,
 					rf.rain, env_state.Duz, swb.tht_dt, env_state.fc,
@@ -97,7 +97,7 @@ def run_DRYP(filename_input):
 				swb.run_swbm_one_step(inf.inf_dt, rf.PET, env_state.Kc,
 					env_state.grid.at_node['Ksat_soil'], env_state, data_in)
 				
-				env_state.grid.at_node['riv_sat_deficit'][:] *= (swb_rip.tht_dt)
+				env_state.grid.at_node['riv_sat_deficit'][:] *= (swb.tht_dt)
 				
 				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
 				
@@ -109,7 +109,6 @@ def run_DRYP(filename_input):
 				swb_rip.run_swbm_one_step(rip_inf_dt, rf.PET, env_state.Kc,
 						env_state.grid.at_node['Ksat_ch'], env_state,
 						data_in, env_state.river_ids_nodes)
-						
 				swb_rip.pcl_dt *= env_state.area_cells_banks/env_state.area_cells
 				swb_rip.aet_dt *= env_state.area_cells_banks/env_state.area_cells
 				rip_env_state.pcl_dt = swb_rip.pcl_dt
@@ -128,7 +127,7 @@ def run_DRYP(filename_input):
 				rch_mb.append(np.sum(env_state.SZgrid.at_node['recharge'][env_state.grid.core_nodes]))				
 				dis_mb.append(np.sum(env_state.SZgrid.at_node['discharge'][env_state.grid.core_nodes]))
 				gws_mb.append(str_gw_t)				
-				#print(data_in.dtSZ,data_in.dtUZ,data_in.dtOF)
+				
 				if dt_GW == data_in.dtSZ:
 					env_state.SZgrid.at_node['discharge'][:] = 0.0
 					env_state.SZgrid.at_node['recharge'][:] = rch_agg

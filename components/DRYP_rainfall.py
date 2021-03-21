@@ -111,3 +111,62 @@ class rainfall(object):
 		Something like this might be needed
 		"""
 		pass
+
+class input_datasets_bigfiles(object):
+	def __init__(self, inputfile, env_state):
+		dt = np.min([inputfile.dtUZ, inputfile.dtUZ, inputfile.dtSZ])
+		if inputfile.first_read == 1:
+			t_end = inputfile.Sim_period.days
+			self.date_sim_dt = pd.date_range(inputfile.ini_date,
+				periods = t_end*inputfile.dt_hourly*inputfile.dt_sub_hourly,
+				freq = str(np.int(dt))+'min')
+			if t_end <= 0:
+				sys.exit("End of the simulation period should be later than initial date")
+		self.t_end = t_end
+		self.read_before_pre = 1
+		self.read_before_pet = 1
+		self.year = int(inputfile.ini_date.year)
+		
+	# find precipitation and PET for an specific time step
+	def run_dataset_one_step(self, j, env_state, inputfile):
+		"""
+		Call this to execute a step in the model.
+		"""
+		date = self.date_sim_dt[j]
+		#Precipitation
+		if self.year == date.year:
+			j_tp = (int(date.strftime('%-j'))-1)*24 + int(date.strftime('%-H'))
+			if self.read_before_pre == 1:
+				fname_pre = inputfile.fname_TSPre + '_' + str(date.year) + '.nc'
+				self.fpre = Dataset(fname_pre, 'r')
+				self.rain = (self.fpre.variables['pre'][j_tp][:]).T.flatten()
+				self.read_before_pre = 0
+			else:
+				self.rain = (self.fpre.variables['pre'][j_tp][:]).T.flatten()
+				self.read_before_pre = 0
+		else:
+			j_tp = (int(date.strftime('%-j'))-1)*24 + int(date.strftime('%-H')) 
+			fname_pre = inputfile.fname_TSPre + '_' + str(date.year) + '.nc'
+			self.fpre = Dataset(fname_pre, 'r')
+			self.rain = (self.fpre.variables['pre'][j_tp][:]).T.flatten()
+			self.read_before_pre = 0
+		
+		# Evapotranspiration
+		if self.year == date.year:
+			j_te = (int(date.strftime('%-j'))-1)*24 + int(date.strftime('%-H'))
+			if self.read_before_pet == 1:
+				fname_pet = inputfile.fname_TSMeteo + '_' + str(date.year) + '.nc'
+				self.fpet = Dataset(fname_pet, 'r')
+				self.PET = (self.fpet.variables['pet'][j_tp][:]).T.flatten()
+				self.read_before_pet = 0
+			else:
+				self.PET = (self.fpet.variables['pet'][j_tp][:]).T.flatten()
+				self.read_before_pet = 0
+		else:
+			j_te = (int(date.strftime('%-j'))-1)*24 + int(date.strftime('%-H')) 
+			fname_pet = inputfile.fname_TSMeteo + '_' + str(date.year) + '.nc'
+			self.fpet = Dataset(fname_pet, 'r')
+			self.PET = (self.fpet.variables['pet'][j_tp][:]).T.flatten()
+			self.read_before_pet = 0
+			
+		self.year = int(date.year)
