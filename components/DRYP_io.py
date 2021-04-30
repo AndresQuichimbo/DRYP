@@ -15,14 +15,10 @@ class inputfile(object):
 	"""
 	"""
 	def __init__(self, filename_inputs, first_read = 1):
-		"""
-		This gets done whenever you make an inputfile object, so in a driver
-		it looks like:
-		 > > >  data_in = inputfile('Dryland_models_v32_list.txt')
-		 > > >  data_in.filenameDEM
-		[whatever it is gets returned]
+		"""Model paramter settings and input file namens and location
 		"""
 		self.first_read = first_read
+		# =================================================================
 		f = pd.read_csv(filename_inputs)
 		self.Mname = f.drylandmodel[1]
 		# Surface components ======================================== SZ = 
@@ -50,9 +46,19 @@ class inputfile(object):
 		self.fname_SZ_Ksat = f.drylandmodel[53] # Saturated hydraulic conductivity (Ks)
 		self.fname_SZ_Sy = f.drylandmodel[55] 	# Specific yield
 		self.fname_GWini = f.drylandmodel[57] 	# Initial water table
-		self.fname_CFB = f.drylandmodel[59]		# Constant head boundary
+		self.fname_FHB = f.drylandmodel[59]		# flux head boundary
 		self.fname_CHB = f.drylandmodel[61]		# Constant flux boundary
 		self.fname_SZ_bot = f.drylandmodel[63]	# Aquifer bottom elevation
+		
+		if len(f) < 89:
+			self.fname_a_aq = 'None'
+		else:
+			self.fname_a_aq = f.drylandmodel[89]
+		
+		if len(f) < 91:
+			self.fname_b_aq = 'None'
+		else:
+			self.fname_b_aq = f.drylandmodel[91]
 		# Meterological data ======================================== ET = 
 		self.fname_TSPre = f.drylandmodel[66]	# Precipitation file
 		self.fname_TSMeteo = f.drylandmodel[68]	# Evapotranspiration file
@@ -65,7 +71,8 @@ class inputfile(object):
 		self.fname_DISpoints = f.drylandmodel[75]	# Discharge points
 		self.fname_SMDpoints = f.drylandmodel[77]	# Soil moisture points
 		self.fname_GWpoints = f.drylandmodel[79]	# Groundwater observation points
-				
+		
+		#==================================================================		
 		# Reading simulation and printing parameters		
 		filename_simpar = f.drylandmodel[87]
 		fsimpar = pd.read_csv(filename_simpar)
@@ -76,18 +83,46 @@ class inputfile(object):
 		self.dtUZ = float(fsimpar.DWAPM_SET[8])
 		self.dtSZ = float(fsimpar.DWAPM_SET[10])
 		
-		self.netcf_pre = int(fsimpar.DWAPM_SET[13])
-		self.netcf_ETo = int(fsimpar.DWAPM_SET[15])
-		self.netcf_ABC = int(fsimpar.DWAPM_SET[17])
+		aux_dt_pre = fsimpar.DWAPM_SET[13].split()
+		aux_dt_pet = fsimpar.DWAPM_SET[15].split()
+		aux_dt_ABC = fsimpar.DWAPM_SET[17].split()
 		
+		# Datasets format
+		self.netcf_pre = int(aux_dt_pre[0])
+		self.netcf_ETo = int(aux_dt_pet[0])
+		self.netcf_ABC = int(aux_dt_ABC[0])
+		
+		# default time step of data sets
+		self.dt_pre = 60
+		self.dt_pet = 60
+		self.dt_ABC = 60
+		
+		if len(aux_dt_pre) > 1:
+			self.dt_pre = int(aux_dt_pre[1])
+		if len(aux_dt_pet) > 1:
+			self.dt_pet = int(aux_dt_pet[1])
+		if len(aux_dt_ABC) > 1:
+			self.dt_ABC = int(aux_dt_ABC[1])
+						
 		self.inf_method = int(fsimpar.DWAPM_SET[20])
-		self.run_GW = int(fsimpar.DWAPM_SET[24])
-		self.run_OF_lr = int(fsimpar.DWAPM_SET[26])
+		
+		if self.inf_method > 3:
+			self.inf_method = 0
+		
+		aux_run_GW = fsimpar.DWAPM_SET[24].split()
+		
+		self.run_GW = int(aux_run_GW[0])
+		if len(aux_run_GW) > 1:
+			self.gw_func = int(aux_run_GW[1])
+		else:
+			self.gw_func = 0
+		
+		self.run_OF_lr = int(fsimpar.DWAPM_SET[22])
 				
 		self.print_sim_ti = int(fsimpar.DWAPM_SET[31])
 		self.print_t = int(fsimpar.DWAPM_SET[43])
-		self.print_tgw = int(fsimpar.DWAPM_SET[33])
-		self.print_maps = int(fsimpar.DWAPM_SET[41])
+		self.save_results = int(fsimpar.DWAPM_SET[33])
+		self.dt_results = fsimpar.DWAPM_SET[35]
 		self.print_maps_tn = int(fsimpar.DWAPM_SET[39])		
 		
 		self.kdt_r = float(fsimpar.DWAPM_SET[46])
@@ -107,21 +142,21 @@ class inputfile(object):
 		#self.kpKloss = float(fsimpar.DWAPM_SET[51])
 		#self.kpLoss = float(fsimpar.DWAPM_SET[51])
 		#self.Ktr = float(fsimpar.DWAPM_SET[51])
-		
-		if self.dtUZ > 60:
+		self.dt = np.min([self.dtOF, self.dtUZ, self.dtSZ])
+		if self.dt > 60:
 			self.dt_sub_hourly = 1
-			self.dt_hourly = np.int(1440/self.dtUZ)
-			self.unit_sim = self.dtUZ/1440		#inputs ks[mm/d]
-			self.unit_sim_k = self.dtUZ*24/1440	#inputs ks[mm/d]
-			self.kT_units = self.dtUZ/60
+			self.dt_hourly = np.int(1440/self.dt)
+			self.unit_sim = self.dt/1440		#inputs ks[mm/d]
+			self.unit_sim_k = self.dt*24/1440	#inputs ks[mm/d]
+			self.kT_units = self.dt/60
 		else:
-			self.dt_sub_hourly = np.int(60/self.dtUZ)
+			self.dt_sub_hourly = np.int(60/self.dt)
 			self.dt_hourly = 24
-			self.unit_sim = self.dtUZ/60		#inputs ks[mm/d]
-			self.unit_sim_k = self.dtUZ/60		#inputs ks[mm/d]
-			self.kT_units = self.dtUZ/60
-		self.unit_change_manning = (1/(self.dtUZ*60))**(3/5)
-		self.Agg_method = str(self.dtUZ)+'T'
+			self.unit_sim = self.dt/60		#inputs ks[mm/d]
+			self.unit_sim_k = self.dt/60		#inputs ks[mm/d]
+			self.kT_units = self.dt/60
+		self.unit_change_manning = (1/(self.dt*60))**(3/5)
+		self.Agg_method = str(self.dt)+'T'
 		self.kpKloss = 1.0							# initial Kloss increase for TL
 		self.T_str_channel = 0.0			# duration of initial Kloss increase for TL
 		self.Kloss = self.Kloss*self.unit_sim_k
@@ -131,9 +166,7 @@ class inputfile(object):
 		self.Sim_period = self.end_datet - self.ini_date
 
 class model_environment_status(object):
-	"""
-	Here we store any state variables we need, and can pass this
-	around between	process classes
+	"""Setting model input varables and environmental states
 	"""
 	def __init__(self, inputfile):
 	
@@ -150,11 +183,11 @@ class model_environment_status(object):
 			
 		# Reading the raster file of river network
 		if os.path.exists(inputfile.fname_River):     
-			read_esri_ascii(inputfile.fname_River, name = 'river_length', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_River, name = 'river_length', grid=rg)[1]
 		else:
-			rg.add_ones('node', 'river_length', dtype = float)
+			rg.add_ones('node', 'river_length', dtype=float)
 			rg.at_node['river_length'][:] *= rg.dx
-			#riv_len = rg.add_ones('node', 'river_length', dtype = float)*rg.dx
+			
 			print('All cells are considered rivers with length of grid size')
 		
 		riv = rg.add_ones('node', 'river', dtype=int)
@@ -163,7 +196,7 @@ class model_environment_status(object):
 		
 		# Reading the raster file of river width
 		if not os.path.exists(inputfile.fname_RiverWidth):
-			riv_width = rg.add_zeros('node', 'river_width', dtype = float)
+			riv_width = rg.add_zeros('node', 'river_width', dtype=float)
 			rg.at_node['river_width'][:] = 10.0
 			print('Not available river width: W = 10.0 [m]')
 		else:
@@ -171,7 +204,7 @@ class model_environment_status(object):
 		
 		# Reading the raster file of river elevation
 		if not os.path.exists(inputfile.fname_RiverElev):
-			rg.add_zeros('node', 'river_topo_elevation', dtype = float)
+			rg.add_zeros('node', 'river_topo_elevation', dtype=float)
 			rg.at_node['river_topo_elevation'][:] = z - 5.0 #[m]
 			print('Not available river bottom elevation: z_riv = z_surf-5.0 [m]')
 		else:
@@ -223,7 +256,7 @@ class model_environment_status(object):
 			rg.at_node['Soil_depth'] *= 1000.0	# default value 1000 mm
 			print('Not available rooting depth, defaul value 600mm')
 		else:
-			read_esri_ascii(inputfile.fname_SoilDepth, name='Soil_depth', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_SoilDepth, name='Soil_depth', grid=rg)[1]
 
 		rg.at_node['Soil_depth'] *= inputfile.kDroot
 		self.Droot = np.array(rg.at_node['Soil_depth'])
@@ -234,7 +267,7 @@ class model_environment_status(object):
 			rg.at_node['theta_r'][:] += 0.025
 			print('Not available residual moisture content (theta_r)')
 		else:
-			read_esri_ascii(inputfile.fname_theta_r, name='theta_r', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_theta_r, name='theta_r', grid=rg)[1]
 
 		
 		# Reading Wilting point field
@@ -243,7 +276,7 @@ class model_environment_status(object):
 			rg.at_node['wilting_point'][:] *= 0.05
 			print('Not available wilting point, default: wp = 0.02')
 		else:
-			read_esri_ascii(inputfile.fname_wp, name='wilting_point', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_wp, name='wilting_point', grid=rg)[1]
 				
 		# Read Saturated water content (porosity)
 		if not os.path.exists(inputfile.fname_n): 
@@ -263,7 +296,6 @@ class model_environment_status(object):
 					
 		# Exponent for soil moisture - matrix potential relation
 		# Rawls (1982), and Clapp and Hornberger (1978)
-		# it can be n for vanGenutchen
 		if not os.path.exists(inputfile.fname_b_SOIL):			
 			rg.add_zeros('node', 'b_SOIL', dtype=float)
 			print('Not available power parameter dor water retention')
@@ -272,7 +304,7 @@ class model_environment_status(object):
 	
 		# air-entry/saturated capillary potential, [mm]
 		if not os.path.exists(inputfile.fname_PSI):
-			rg.add_ones('node', 'PSI', dtype = float)
+			rg.add_ones('node', 'PSI', dtype=float)
 			rg.at_node['PSI'] = (rg.at_node['PSI'] * (rg.at_node['b_SOIL']*2+2.5)
 							/ (rg.at_node['b_SOIL']+2.5))
 			print('Not available PSI')
@@ -289,8 +321,8 @@ class model_environment_status(object):
 			self.Kc = np.array(Kc)
 		
 		# Water bastraction component
-		rg.add_zeros('node', 'AOF', dtype = float)
-		rg.add_ones('node', 'AOFT', dtype = float)
+		rg.add_zeros('node', 'AOF', dtype=float)
+		rg.add_ones('node', 'AOFT', dtype=float)
 		rg.at_node['AOFT'][:] = ABC_RIVER
 		# ======================== GW - groundwater parameters ===================
 		#read model domain of the GW model and merge it with the surface model
@@ -310,29 +342,27 @@ class model_environment_status(object):
 		
 		# ========================== Creating landlab fields =====================
 		# Soil parameters fields
-		rg.add_zeros('node', 'runoff', dtype = float)
-		rg.add_zeros('node', 'percolation', dtype = float)
-		rg.add_zeros('node', 'recharge', dtype = float)
-		rg.add_zeros('node', 'PET', dtype = float)
-		rg.add_zeros('node', 'Sorptivity', dtype = float)
+		rg.add_zeros('node', 'runoff', dtype=float)
+		rg.add_zeros('node', 'percolation', dtype=float)
+		rg.add_zeros('node', 'recharge', dtype=float)
+		rg.add_zeros('node', 'PET', dtype=float)
+		rg.add_zeros('node', 'Sorptivity', dtype=float)
 	
 		# Transmission losses parameters
-		rg.add_zeros('node', 'Transmission_losses', dtype = float) # river transmission losses
-		rg.add_zeros('node', 'Base_flow', dtype = float) # river transmission losses
-		rg.add_zeros('node', 'decay_flow', dtype = float) # river decay flow parameter
-		#rg.add_zeros('node', 'PET', dtype = float) # PET river
-		rg.add_zeros('node', 'AETp_riv', dtype = float) # Actual ET river
-		rg.add_zeros('node', 'ETp_riv', dtype = float) # PET river
-		#rg.add_zeros('node', 'distance', dtype = float) # River distance for accumulation
-		rg.add_zeros('node', 'Q_ini', dtype = float)
-		rg.add_ones('node', 'kTr_ini', dtype = float)		
+		rg.add_zeros('node', 'Transmission_losses', dtype=float) # river transmission losses
+		rg.add_zeros('node', 'Base_flow', dtype=float) # river transmission losses
+		rg.add_zeros('node', 'decay_flow', dtype=float) # river decay flow parameter
+		rg.add_zeros('node', 'AETp_riv', dtype=float) # Actual ET river
+		rg.add_zeros('node', 'ETp_riv', dtype=float) # PET river
+		rg.add_zeros('node', 'Q_ini', dtype=float)
+		rg.add_ones('node', 'kTr_ini', dtype=float)		
 
 		# Setting groundwater component
 		if inputfile.run_GW == 1:
 
 			# Reading specific yield
 			if not os.path.exists(inputfile.fname_SZ_Sy):				
-				gw.add_zeros('node', 'SZ_Sy', dtype = float) # Water table elevation
+				gw.add_zeros('node', 'SZ_Sy', dtype=float) # Water table elevation
 				gw.at_node['SZ_Sy'] += 0.01
 				print('Not available Aquifer Specific yield: Sy = 0.01')
 			else:
@@ -369,23 +399,47 @@ class model_environment_status(object):
 			gw.at_node['Hydraulic_Conductivity'] *= inputfile.kKsat_gw
 						
 			# Check if constant head boundary is provided
-			if not os.path.exists(inputfile.fname_CHB): 
+			if not os.path.exists(inputfile.fname_CHB):				
 				print('Not available constant head boundary conditions')
 			else:
-				SZ_CHBa = read_esri_ascii(inputfile.fname_CHB, name = 'SZ_CHB', grid=gw)[1]
+				SZ_CHBa = read_esri_ascii(inputfile.fname_CHB, name='SZ_CHB', grid=gw)[1]
 				id_CHB = np.where(gw.at_node['SZ_CHB'] != -9999)[0]
 				gw.at_node['water_table__elevation'][id_CHB] = gw.at_node['SZ_CHB'][id_CHB]
 				gw.status_at_node[id_CHB] = gw.BC_NODE_IS_FIXED_VALUE
+				
+			# Check if flux head boundary is provided
+			if not os.path.exists(inputfile.fname_FHB):
+				gw.add_zeros('node', 'SZ_FHB', dtype=float)
+				print('Not available flux head boundary conditions')
+			else:
+				SZ_CHBa = read_esri_ascii(inputfile.fname_FHB, name='SZ_FHB', grid=gw)[1]
+				gw.at_node['SZ_FHB'][gw.at_node['SZ_FHB'] == -9999] = 0				
+				gw.at_node['SZ_FHB'][:] = gw.at_node['SZ_FHB'][:]*2/(np.power(rg.dx, 2))
+			
+			# Check if a transmissivity is provided
+			if not os.path.exists(inputfile.fname_a_aq):
+				gw.add_zeros('node', 'SZ_a_aq', dtype=float)
+				gw.at_node['SZ_a_aq'][:] = 50.0
+				print('Not available a parameter aquifer')
+			else:
+				SZ_CHBa = read_esri_ascii(inputfile.fname_a_aq, name='SZ_a_aq', grid=gw)[1]
+				
+			# Check if flux head boundary is provided
+			if not os.path.exists(inputfile.fname_b_aq):
+				gw.add_zeros('node', 'SZ_b_aq', dtype=float)
+				print('Not available b parameter aquifer')
+			else:
+				SZ_CHBa = read_esri_ascii(inputfile.fname_b_aq, name='SZ_b_aq', grid=gw)[1]
+				
 			
 			self.SZgrid = gw
 		else:
 	
 			h = z - rg.at_node['Soil_depth']*0.001
 		
-		self.Duz = np.where((z - h) >= 0, z-h, 0)*1000.0
-		self.Duz = np.where(self.Duz < rg.at_node['Soil_depth'], self.Duz, rg.at_node['Soil_depth'])
-		rg.add_zeros('node', 'head_difference', dtype = float)
-		rg.at_node['riv_sat_deficit'] = z - h
+		self.Duz = np.array(rg.at_node['Soil_depth'])
+		
+		rg.at_node['riv_sat_deficit'] = (z - h)*np.power(rg.dx,2)
 		
 	# ======================== Defining core cells ========================
 		# defining nodes to reduce the number of operation
@@ -428,14 +482,13 @@ class model_environment_status(object):
 		
 		# Channel hydraulic parameters
 		rg.at_node['decay_flow'][:] = inputfile.kT_units/inputfile.T_loss
-		#rg.at_node['distance'][:] = np.array(rg.at_node['river_length'][:])
 		river_banks = 30.0 # It is hard coded for now and will be pass as a raster grid
 		
 		if not os.path.exists(inputfile.fname_Ksat_ch):			
-			rg.add_ones('node', 'Ksat_ch', dtype = float)
+			rg.add_ones('node', 'Ksat_ch', dtype=float)
 			print('Not available channel Ksat: Ksat_ch = 1.0 [mm/h])')			
 		else:		
-			read_esri_ascii(inputfile.fname_Ksat_ch, name = 'Ksat_ch', grid = rg)[1]
+			read_esri_ascii(inputfile.fname_Ksat_ch, name='Ksat_ch', grid=rg)[1]
 				
 		rg.at_node['Ksat_ch'] = rg.at_node['Ksat_ch']*inputfile.Kloss
 		rg.at_node['SS_loss'] = rg.at_node['river_width']*rg.at_node['Ksat_ch']*rg.at_node['river_length'] # m/dt
@@ -453,7 +506,6 @@ class model_environment_status(object):
 		self.t_0 = np.zeros(len(z))		
 		self.Ft_0 = np.zeros(len(z))
 		
-		#m = 1-np.array(1/b_SOIL)		
 		self.SORP0 = np.zeros(len(z))
 		
 		ds = np.array(rg.at_node['Soil_depth'][act_nodes])
@@ -493,8 +545,16 @@ class model_environment_status(object):
 			self.area_cells_banks = self.area_cells-self.area_cells_hills
 		else:
 			self.area_cells_hills[self.riv_nodes] = 0.0
-	
+		
 		self.mask_grid = np.ones(len(aux_mask), dtype = int) - aux_mask
+		self.riv_factor = aux_mask*self.area_cells_banks/self.area_cells
+		self.hill_factor = aux_mask*self.area_cells_hills/self.area_cells
+		self.rip_factor = np.zeros(len(z))
+		self.rip_factor[self.area_cells_banks != 0] = (
+			1000./self.area_cells_banks[self.area_cells_banks != 0])
+		self.func = int(inputfile.gw_func)
+		self.rarea = np.array(rg.at_node['river_width']*rg.at_node['river_length'])
+		
 		
 	# Create directories for saving results	
 	def set_output_dir(self, inputfile):

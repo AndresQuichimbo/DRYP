@@ -1,14 +1,22 @@
 import numpy as np
 import os
-import pdb
 from landlab import RasterModelGrid
 from landlab.io import read_esri_ascii
-import scipy.special as spy
 
 class infiltration(object):
 	def __init__(self, env_state, data_in):		
 		# K_sat:	Saturated hydraulic conductivity	
-		# PSI_f:	Wetting front suction head			
+		# PSI_f:	Wetting front suction head
+		if data_in.inf_method == 1:
+			print('Infiltration approach: Philips')			
+		elif data_in.inf_method == 2:
+			print('Infiltration approach: Modified GA')			
+		elif data_in.inf_method == 3:
+			print('Infiltration approach: Upscaled GA')			
+		else:
+			print('Infiltration approach: Schaake Method')			
+		print('Change approach in setting_file: line 20')
+		
 		act_nodes = env_state.act_nodes		
 		self.rain_day_before = 0
 		
@@ -72,28 +80,30 @@ class infiltration(object):
 		self.exs_dt[act_nodes] = excess
 
 def infiltration_model(rainfall,K_sat,PSI_f,Droot,SORP0,L_0,Lsat,t_0,Ft0,rain_day_before,inf_method,*args):
-	#	grid		: Landlad grid
-	#	rainfall	: Rainfall, numpy array 
-	#	act_nodes	: Active nodes, array
-	#	inf_method	: 0 - Shaake
-	#				  1 - Philips
-	#				  2 - Up-scaled GA
-	#				  3 - Modified GA
-	#	PSI_f		: Maximum potentiometric head (cm), numpy array
-	#	Droot			: Soil depth (mm), numpy array
-	#	SORP		: Sorptivity
-	#	SORP0
-	#	L_0			: Initial water content t = 0
-	#	L			: Water content at time t
-	#	ds			: Soil depth
-	#	t_0			: initial t
-	#	t_i			: time from the start of the precipitation event
-	#	F			: Cummulative infiltration rate
-	#	rain_day_before
-	# Incorporate the variable saturated conditions
-	# make zero precipitation for cell with saturated
-	# and zero depth of UZ zone
-	# Create an exs_aux to store the precipitation
+	"""
+	Parameters:
+		grid		: Landlad grid
+		rainfall	: Rainfall, numpy array 
+		act_nodes	: Active nodes, array
+		inf_method	: 0 - Shaake
+					  1 - Philips
+					  2 - Up-scaled GA
+					  3 - Modified GA
+		PSI_f		: Maximum potentiometric head (cm), numpy array
+		Droot			: Soil depth (mm), numpy array
+		SORP		: Sorptivity
+		SORP0
+		L_0			: Initial water content t = 0
+		L			: Water content at time t
+		ds			: Soil depth
+		t_0			: initial t
+		t_i			: time from the start of the precipitation event
+		F			: Cummulative infiltration rate
+		rain_day_before
+	Incorporate the variable saturated conditions
+	make zero precipitation for cell with saturated
+	and zero depth of UZ zone	 
+	"""
 	sat_excess_dt = np.where((Lsat-L_0) <= 0.0,rainfall,0.0)
 	rainfall = np.where((Lsat-L_0) <= 0.0,0.0,rainfall)
 	sat_excess_dt = np.where(Droot <= 0.0,rainfall,sat_excess_dt)
@@ -160,7 +170,7 @@ def SCHAAKE(P,ga_kdt,Lsat,L):
 	D = Lsat-L
 	I_aux = D*ga_kdt
 	I = P*I_aux/(P+I_aux)
-	I = np.where(P+I_aux == 0.0,0.0,I)
+	I[P+I_aux == 0.0] = 0#np.where(P+I_aux == 0.0,0.0,I)
 	RO = P-I
 	return I, RO
 
@@ -190,37 +200,37 @@ def Philip(P,ks,Sp,F,t):
 
 # Upscaled Green & Ampt infiltration approach - Craig et. al. 2010
 # Required Gauss2p, epsilon, and getX
-def Upscaled_GA(P,ks,Sp,t,mu_Y,sigma_Y):
-	X = getX(t,Sp,P)
-	A = np.where(X == 0.0,0.0,(np.log(P*X)-mu_Y)/(sigma_Y*np.sqrt(2)))
-	A = np.where(sigma_Y == 0,1e99,A)
-	Aaux = np.exp(mu_Y+0.5*(sigma_Y**2)) # it can be estimated offline
-	I = np.where(X == 0.0,0.0,0.5*P*spy.erfc(A)+(0.5/X)*Aaux*spy.erfc((sigma_Y/np.sqrt(2))-A))
+def Upscaled_GA(P, ks, Sp, t, mu_Y, sigma_Y):
+	X = getX(t, Sp, P)
+	A = np.where(X == 0, 0, (np.log(P*X)-mu_Y)/(sigma_Y*np.sqrt(2)))
+	A = np.where(sigma_Y == 0, 1e99, A)
+	Aaux = np.exp(mu_Y+0.5*(sigma_Y**2))
+	I = np.where(X == 0, 0, 0.5*P*spy.erfc(A)+(0.5/X)*Aaux*spy.erfc((sigma_Y/np.sqrt(2))-A))
 	I += np.where(X == 0.0,0.0,Gauss2p(t,Sp,P,mu_Y,sigma_Y,ks))
 	RO = P-I
 	return I, RO
 
 # 2-point Gauss-Legrenge integrator	
-def Gauss2p(t,Sp,P,mu_Y,sigma_Y,ks):
-	X = getX(t,Sp,P)
+def Gauss2p(t, Sp, P, mu_Y, sigma_Y, ks):
+	X = getX(t, Sp, P)
 	dk = 0.5*(P*X-np.exp(mu_Y-3.0*sigma_Y))
 	km = P*X-dk
 	k1 = km-0.57735*dk
 	k2 = km+0.57735*dk
 	return dk*P*(epsilon_fks(k1,t,Sp,P,mu_Y,sigma_Y,ks)+epsilon_fks(k1,t,Sp,P,mu_Y,sigma_Y,ks))
 
-# Epsilon funtion for upsaceld GA infiltration	
+# Epsilon funtion for upscaled GA infiltration	
 def epsilon_fks(k,t,Sp,P,mu_Y,sigma_Y,ks):
 	X = getX(t,Sp,P)
 	kp = ks/(P*X)
 	fks = np.where(k <= 0.0,0.0,(1.0/(k*sigma_Y*np.sqrt(2.0*np.pi)))*np.exp(-0.5*(np.power((np.log(k)-mu_Y)/sigma_Y,2))))
 	epsilon = np.where(X == 0.0,0.0,0.36315*np.power(1-X,0.484)*np.power(1.0-kp,1.74)*np.power(kp,0.38))
-	epsilon = np.where(kp >= 1.0,0.0,epsilon)
-	epsilon = np.where(kp == 0.0,0.0,epsilon)
+	epsilon[kp >= 1.0] = 0
+	epsilon[kp == 0.0] = 0
 	return epsilon*fks
 
 # Dimentionless time parameter	
-def getX(t,Sp,P):
+def getX(t, Sp, P):
 	X_aux = P*t/Sp
 	return np.where(X_aux == 0.0,0.0,1/(1+1/X_aux))
 	
@@ -235,7 +245,7 @@ def Mod_GA(P,ks,Sp,F,t,dt):
 	id_error = np.where(aux >= 0)[0]
 	if len(id_error) > 0: # ponding during time step
 		to = Newthon_Rap_Mod_GA(P,ks,Sp,F,t,tp,0.1)
-	else: # Ponding already ocurred
+	else:
 		to = t
 	Faux = np.where(to == 0,0,ks*(t+dt-to)+Sp*np.log((t+dt)/to))
 
@@ -248,8 +258,6 @@ def Mod_GA(P,ks,Sp,F,t,dt):
 	return F_tf, I, RO
 	
 def Newthon_Rap_Mod_GA(P,ks,Sp,F,t,tp,to_0):
-	# this is for allowing a matrix convergence of each cell at each time step
-	# to avoid going through each cell
 	error = np.zeros(len(F))
 	aux_1 = tp-t
 	aux_2 = t+1-tp
@@ -275,7 +283,6 @@ def dF_GA(ks,Sp,to):
 	return -(ks+Sp/to)
 	
 # Modified Green & Ampt infiltration approach
-# Simple version
 def Mod_GA_Sim(P,ks,Sp,t,dt):
 	# Approximation of Green and Ampt equation for small time steps
 	tp = np.where(P > ks,Sp/(P-ks),0)

@@ -12,9 +12,9 @@ SZ Time step - dt_Pre (min) - (1440 for daily)..(12)
 60
 ============ MODEL READING OPTIONS ================
 Read Precipitation from NETCF file..............(13)
-0
+0 60
 Read Evapotranspiration from NETCF file.........(15)
-0
+0 60
 Read Abstractions from NETCF file ..............(17)
 0
 ============== MODEL COMPONENTS ===================
@@ -22,8 +22,8 @@ Inf.- 0: Scheeke 1: Philips 2: Up_GA 3: Mod_GA..(20)
 1
 Run surface routing ----------------------------(22)
 0
-Run Groundwater Modflow ------------------------(24)
-1
+Run Groundwater-Enable Type: 0-Unc 1-func 2-Con-(26)
+1 1
 Run OF linear reservoir: 1 active 0 disable.....(26)
 0
 Run UZ linear reservoir: 1 active 0 disable.....(28)
@@ -31,10 +31,10 @@ Run UZ linear reservoir: 1 active 0 disable.....(28)
 =============== OUTPUT OPTIONS ====================  
 Show simulation times 1 active 0 disable .......(31)
 0
-Save OF and UZ maps as figures and netcf files..(33)
-0
-Save GW as figures and netcf files (daily)......(35)
-0
+Save state rasults in netcf files...............(33)
+1
+Temporal aggregation results (eg. 3M Y H).......(35)
+6M
 Plot maps and the end of the period.............(37)
 0
 Save maps as raster at the end of the period....(39)
@@ -55,7 +55,7 @@ Infiltration rate factor - kKsat ...............(52)
 Heterogeneity factor - k_sigma - (Upscaled GA)..(54)
 1.0
 Transmission losses - Kch (m/h) ................(56)
-1.52967
+10.52967
 Decay discharge - T - (hours)...................(58)
 0.1512967
 Channel width parameter (pe-not activated)......(60)

@@ -10,13 +10,11 @@ from components.DRYP_rainfall import rainfall
 from components.DRYP_ABM_connector import ABMconnector
 from components.DRYP_routing import runoff_routing
 from components.DRYP_soil_layer import swbm
-from components.DRYP_Gen_Func import GlobalTimeVarPts, GlobalTimeVarAvg, GlobalGridVar
-from components.DRYP_Gen_Func import save_map_to_rastergrid, check_mass_balance
 from components.DRYP_groundwater_EFD import gwflow_EFD, storage, storage_uz_sz
-import components.DRYP_plot_fun as dryp_plot
-import matplotlib.pyplot as plt
-from landlab.plot.imshow import imshow_grid
-from datetime import datetime, timedelta
+from components.DRYP_Gen_Func import (
+	GlobalTimeVarPts, GlobalTimeVarAvg, GlobalGridVar,
+	save_map_to_rastergrid, check_mass_balance)
+
 
 # Structure and model components ---------------------------------------
 # data_in:	Input variables 
@@ -50,8 +48,7 @@ def run_DRYP(filename_input):
 	outavg = GlobalTimeVarAvg(env_state.area_catch_factor)
 	outavg_rip = GlobalTimeVarAvg(env_state.area_river_factor)
 	outpts = GlobalTimeVarPts()
-	rip_env_state = GlobalGridVar(env_state.grid)
-	state_month = GlobalGridVar(env_state.grid)
+	state_var = GlobalGridVar(env_state, data_in)
 	
 	t = 0	
 	t_eto = 0	
@@ -59,14 +56,18 @@ def run_DRYP(filename_input):
 	
 	gw_level = []
 	pre_mb = []
+	exs_mb = []
+	tls_mb = []
 	gws_mb = []
 	uzs_mb = []
 	dis_mb = []
 	rch_mb = []
 	aet_mb = []
+	egw_mb = []
 
 	rch_agg = np.zeros(len(swb.L_0))
-	dt_GW = np.int(data_in.dtUZ)
+	etg_agg = np.zeros(len(swb.L_0))
+	dt_GW = np.int(data_in.dt)
 	
 	while t < rf.t_end:
 	
@@ -94,6 +95,9 @@ def run_DRYP(filename_input):
 				
 				inf.run_infiltration_one_step(rf, env_state, data_in)
 				
+				aux_usz = np.sum((swb.L_0*env_state.hill_factor)[env_state.act_nodes])
+				aux_usp = np.sum((swb_rip.L_0*env_state.riv_factor)[env_state.act_nodes])
+				
 				swb.run_swbm_one_step(inf.inf_dt, rf.PET, env_state.Kc,
 					env_state.grid.at_node['Ksat_soil'], env_state, data_in)
 				
@@ -101,43 +105,50 @@ def run_DRYP(filename_input):
 				
 				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
 				
-				rip_inf_dt = (inf.inf_dt+ro.tls_flow_dt*1000
-					/ np.where(env_state.area_cells_banks <= 0, 1,
-					env_state.area_cells_banks)
-					)
+				tls_aux = ro.tls_flow_dt*env_state.rip_factor
+				
+				rip_inf_dt = inf.inf_dt + tls_aux
 								
 				swb_rip.run_swbm_one_step(rip_inf_dt, rf.PET, env_state.Kc,
 						env_state.grid.at_node['Ksat_ch'], env_state,
 						data_in, env_state.river_ids_nodes)
 						
-				swb_rip.pcl_dt *= env_state.area_cells_banks/env_state.area_cells
-				swb_rip.aet_dt *= env_state.area_cells_banks/env_state.area_cells
-				rip_env_state.pcl_dt = swb_rip.pcl_dt
-				rip_env_state.aet_dt = swb_rip.aet_dt
-				swb.PCL_dt = swb.pcl_dt * env_state.area_cells_hills/env_state.area_cells
-				swb.AET_dt = swb.aet_dt * env_state.area_cells_hills/env_state.area_cells
-				rech = swb.PCL_dt + rip_env_state.pcl_dt - abc.asz# [mm/dt]
-				swb.gwe_dt = gw.SZ_potential_ET(env_state, swb.gwe_dt) #[mm/dt]								
-				rch_agg += (np.array(rech-swb.gwe_dt)*0.001) #[m/dt]
+				swb_rip.pcl_dt *= env_state.riv_factor
+				swb_rip.aet_dt *= env_state.riv_factor
+				swb.pcl_dt *= env_state.hill_factor
+				swb.aet_dt *= env_state.hill_factor
+				rech = swb.pcl_dt + swb_rip.pcl_dt - abc.asz# [mm/dt]
+				etg_dt = gw.SZ_potential_ET(env_state, swb.gwe_dt)
+				etg_agg += np.array(etg_dt) # [mm/h]											
+				rch_agg += np.array(rech) # [mm/dt]
 				
 				# Water balance storage and flow
-				str_gw_t = storage_uz_sz(env_state)
-				pre_mb.append(np.sum(rf.rain[env_state.grid.core_nodes]))
-				uzs_mb.append(np.sum(swb.L_0[env_state.grid.core_nodes]))
-				aet_mb.append(np.sum((rip_env_state.aet_dt+swb.AET_dt)[env_state.grid.core_nodes]))
-				rch_mb.append(np.sum(env_state.SZgrid.at_node['recharge'][env_state.grid.core_nodes]))				
-				dis_mb.append(np.sum(env_state.SZgrid.at_node['discharge'][env_state.grid.core_nodes]))
-				gws_mb.append(str_gw_t)				
-				#print(data_in.dtSZ,data_in.dtUZ,data_in.dtOF)
+				pre_mb.append(np.sum(rf.rain[env_state.act_nodes]))
+				exs_mb.append(np.sum(inf.exs_dt[env_state.act_nodes]))
+				tls_mb.append(np.sum(tls_aux[env_state.act_nodes]))
+				aux_usz1 = np.sum((swb.L_0*env_state.hill_factor)[env_state.act_nodes])
+				aux_usp1 = np.sum((swb_rip.L_0*env_state.riv_factor)[env_state.act_nodes])
+				
+				uzs_mb.append(aux_usp1+aux_usz1-aux_usp-aux_usz)
+				aet_mb.append(np.sum((swb_rip.aet_dt+swb.aet_dt)[env_state.act_nodes]))
+				egw_mb.append(np.sum(etg_dt[env_state.act_nodes]))
+				rch_mb.append(np.sum(rech[env_state.act_nodes]))				
+				#aux_ssz = storage_uz_sz(env_state, 0, 0)			
+				
 				if dt_GW == data_in.dtSZ:
+					# Change units to m/h
 					env_state.SZgrid.at_node['discharge'][:] = 0.0
-					env_state.SZgrid.at_node['recharge'][:] = rch_agg
-					#gw.run_one_step_gw(env_state,24.0,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001)
-					gw.run_one_step_gw_var_T(env_state,data_in.dtSZ/60,swb.tht_dt,swb_rip.tht_dt,env_state.Droot*0.001,50)
+					env_state.SZgrid.at_node['recharge'][:] = (rch_agg - etg_agg)*0.001 #[mm/dt]
+					gw.run_one_step_gw(env_state, data_in.dtSZ/60, swb.tht_dt,
+						env_state.Droot*0.001)
 					rch_agg = np.zeros(len(swb.L_0))
+					etg_agg = np.zeros(len(swb.L_0))
 					dt_GW = 0
 					
-				dt_GW += np.int(data_in.dtUZ)				
+				dt_GW += np.int(data_in.dt)				
+				
+				gws_mb.append(storage_uz_sz(env_state, np.array(swb.tht_dt), gw.dh))#-aux_ssz)
+				dis_mb.append(np.sum(env_state.SZgrid.at_node['discharge'][env_state.act_nodes])-gw.flux_out)
 				
 				#Extract average state and fluxes				
 				outavg.extract_avg_var_pre(env_state.basin_nodes,rf)				
@@ -152,31 +163,30 @@ def run_DRYP(filename_input):
 				outpts.extract_point_var_UZ_swb(env_state.gaugeidUZ,swb)
 				outpts.extract_point_var_OF(env_state.gaugeidOF,ro)
 				outpts.extract_point_var_SZ(env_state.gaugeidGW,gw)
+				state_var.get_env_state(t_pre, rf, inf, swb,
+									ro, gw, swb_rip, env_state)
 				
 				env_state.L_0 = np.array(swb.L_0)				
 				t_pre += 1
 			t_eto += 1		
 		t += 1
-				
+	
+	mb = [pre_mb, exs_mb, tls_mb, rch_mb, gws_mb,
+		uzs_mb, dis_mb, aet_mb, egw_mb]	
+	
 	outavg.save_avg_var(env_state.fnameTS_avg+'.csv', rf.date_sim_dt)
 	outavg_rip.save_avg_var(env_state.fnameTS_avg+'rip.csv', rf.date_sim_dt)
-	outpts.save_point_var(env_state.fnameTS_OF, rf.date_sim_dt)	
+	outpts.save_point_var(env_state.fnameTS_OF, rf.date_sim_dt,
+			ro.carea[env_state.gaugeidOF],
+			env_state.rarea[env_state.gaugeidOF])	
+	state_var.save_netCDF_var(env_state.fnameTS_avg+'.nc')
+	check_mass_balance(env_state.fnameTS_avg, outavg, outpts,
+			outavg_rip, mb, rf.date_sim_dt,
+			ro.carea[env_state.gaugeidOF[0]])
 	
-	check_mass_balance(outavg, outpts, outavg_rip)
-	
+	# Save water table for initial conditions
 	fname_out = env_state.fnameTS_avg + '_wte_ini.asc'	
 	save_map_to_rastergrid(env_state.SZgrid, 'water_table__elevation', fname_out)
 	
-	df = pd.DataFrame()
-	df['Date'] = rf.date_sim_dt
-	df['pre'] = pre_mb
-	df['rch'] = rch_mb
-	df['gws'] = gws_mb
-	df['uzs'] = uzs_mb
-	df['dis'] = dis_mb
-	df['aet'] = aet_mb
-	fname_out = env_state.fnameTS_avg+'_mb.csv'
-	df.to_csv(fname_out)
-
 if __name__ == '__main__':
 	run_DRYP(filename_input)

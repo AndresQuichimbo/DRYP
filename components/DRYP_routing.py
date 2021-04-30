@@ -2,17 +2,28 @@ import os
 import numpy as np
 from landlab.components import LossyFlowAccumulator
 import pyximport; pyximport.install()
-from components.TransLoss import TransLossWVc # for windows
+#from components.TransLoss import TransLossWVc # for windows
 #from TransLoss import TransLossWVc # for linux
 
+river = None
+qini = None
+aof = None
+aoft = None
+rsd = None
+par_3 = None
+par_4 = None
+sloss = None
+decay = None
 
 class runoff_routing(object):
 		
 	def __init__(self,env_state,data_in):
 		Create_parameter_WV(env_state.grid,data_in.Kloss)
 		self.dis_dt = np.zeros(env_state.grid_size)
+		self.qfl_dt = np.zeros(env_state.grid_size)
 		self.tls_dt = np.zeros(env_state.grid_size)
 		self.flow_tls_dt = np.zeros(env_state.grid_size)
+		self.carea = None
 				
 		fa = LossyFlowAccumulator(env_state.grid, 'topographic__elevation',
 								flow_director = 'D8',
@@ -43,40 +54,43 @@ class runoff_routing(object):
 		
 		env_state.grid.at_node['runoff'][act_nodes] = (inf.exs_dt[act_nodes]*0.001
 										* env_state.cth_area[act_nodes]
-										+ env_state.grid.at_node['Base_flow'][act_nodes]
-										+ env_state.SZgrid.at_node['discharge'][act_nodes]
+										+ (env_state.SZgrid.at_node['discharge'][act_nodes])
 										)
 		check_dry_conditions = len(np.where((env_state.grid.at_node['runoff'][act_nodes]
-			+ env_state.grid.at_node['Q_ini'][act_nodes]
-			+ env_state.grid.at_node['Base_flow'][act_nodes]) > 0.0)[0])
+					+ env_state.grid.at_node['Q_ini'][act_nodes]
+					) > 0.0)[0])
 		
 		if check_dry_conditions > 0:
 			self.fa.accumulate_flow(update_flow_director = env_state.act_update_flow_director)
-			if env_state.run_flow_accum_areas == 0:			
-				self.dis_dt[act_nodes] = (1000* np.array(
-					env_state.grid.at_node["surface_water__discharge"][act_nodes]
-					/ (env_state.grid.at_node["drainage_area"][act_nodes])))							
-			else:				
-				self.dis_dt[act_nodes] = (1000.*np.array(
-					env_state.grid.at_node["surface_water__discharge"][act_nodes]
-					/ env_state.area_discharge[act_nodes]))
+			self.dis_dt[act_nodes] = np.array(
+					env_state.grid.at_node["surface_water__discharge"][act_nodes])
+			if self.carea is None:
+				if env_state.run_flow_accum_areas == 0:
+					self.carea = np.array(env_state.grid.at_node["drainage_area"])
+				else:
+					self.carea = np.array(env_state.area_discharge)
+			#if env_state.run_flow_accum_areas == 0:			
+			#	self.dis_dt[act_nodes] = (1000.* np.array(
+			#		env_state.grid.at_node["surface_water__discharge"][act_nodes]
+			#		/ (env_state.grid.at_node["drainage_area"][act_nodes])))							
+			#else:				
+			#	self.dis_dt[act_nodes] = (1000.*np.array(
+			#		env_state.grid.at_node["surface_water__discharge"][act_nodes]
+			#		/ env_state.area_discharge[act_nodes]))
 		else:
 			env_state.grid.at_node['Transmission_losses'][env_state.river_ids_nodes] = 0.0				
 			self.dis_dt[:] = 0				
 			noflow = 0
-		
-		self.tls_dt = env_state.grid.at_node['Transmission_losses']*1000.0/env_state.area_cells
-		self.tls_flow_dt = env_state.grid.at_node['Transmission_losses']
-		
+		self.tls_dt = np.array(env_state.grid.at_node['Transmission_losses']*1000.0/env_state.area_cells)
+		self.tls_flow_dt = np.array(env_state.grid.at_node['Transmission_losses'])
+		self.qfl_dt[act_nodes] = np.array(env_state.grid.at_node['Q_ini'][act_nodes])
 # ===================================================================
 # Transmission losses functions
-
 # Exponential decay parameters
 def Create_parameter_WV(grid,Kloss):
 	grid.at_node['par_4'] = 2.0*Kloss/(grid.at_node['decay_flow']*grid.at_node['river_width'])	
 	grid.at_node['par_3'] = (grid.at_node['river_width']*grid.at_node['SS_loss']
 							/ (grid.at_node['river_width']-2*Kloss))
-	#grid.at_node['base_flow_streams'] = np.zeros(len(grid.at_node['par_3']))	
 	return
 
 # Transmission losses function
@@ -108,6 +122,61 @@ def TransLossWV(Qw, nodeID, linkID, grid):
 				if TL > grid.at_node['riv_sat_deficit'][nodeID]:					
 					Qo += TL-grid.at_node['riv_sat_deficit'][nodeID]				
 					TL = grid.at_node['riv_sat_deficit'][nodeID]
+			
+			grid.at_node['Q_ini'][nodeID] = Qo			
+			grid.at_node['Transmission_losses'][nodeID] = TL
+					
+	return Qout
+
+# Transmission losses function
+def TransLossWV1(Qw, nodeID, linkID, grid):
+	global river, qini, aof, aoft, rsd, par_3, par_4, sloss, decay
+	if river is None:
+		river = grid.at_node['river']
+	if qini is None:
+		qini = grid.at_node['Q_ini']
+	if aof is None:
+		aof = grid.at_node['AOF']
+	if aoft is None:
+		aoft = grid.at_node['AOFT']
+	if rsd is None:
+		rsd = grid.at_node['riv_sat_deficit']
+	if par_3 is None:
+		par_3 = grid.at_node['par_3']
+	if par_4 is None:
+		par_4 = grid.at_node['par_4']
+	if sloss is None:
+		sloss = grid.at_node['SS_loss']
+	if decay is None:
+		decay = grid.at_node['decay_flow']
+		
+	Qout = Qw	
+	if river[nodeID] != 0:		
+		Qin = (Qw+qini[nodeID])
+		# abstractions
+		if Qin <= aof[nodeID]:
+			aof[nodeID] = aoft[nodeID]*Qin
+		Qin += -aof[nodeID]
+			
+		grid.at_node['Q_ini'][nodeID] = 0
+		grid.at_node['Transmission_losses'][nodeID] = 0
+			
+		if Qin > 0.0:		
+			if rsd[nodeID] <= 0.0:		
+				Qout, Qo = exp_decay_wp(Qin,
+						decay[nodeID]
+						)
+
+				TL = 0				
+			else:		
+				Qout, TL, Qo = exp_decay_loss_wp(sloss[nodeID],Qin,
+										decay[nodeID],
+										par_3[nodeID],
+										par_4[nodeID])
+								
+				if TL > rsd[nodeID]:					
+					Qo += TL-rsd[nodeID]				
+					TL = rsd[nodeID]
 			
 			grid.at_node['Q_ini'][nodeID] = Qo			
 			grid.at_node['Transmission_losses'][nodeID] = TL
