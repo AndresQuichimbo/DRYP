@@ -6,7 +6,7 @@ import time
 filename_list = 'DRYP_model_list.txt'
 fmodels = pd.read_csv(filename_list)
 
-for nmodel in [14]:#, 12, 13, 14]:
+for nmodel in [12]:#, 12, 13, 14]:
 
 	filename_inputs = fmodels['Model'][nmodel]
 	

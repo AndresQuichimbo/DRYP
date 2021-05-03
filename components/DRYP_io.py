@@ -247,8 +247,7 @@ class model_environment_status(object):
 		else:
 			read_esri_ascii(inputfile.fname_Ksat_soil, name = 'Ksat_soil', grid = rg)[1]
 			
-		rg.at_node['Ksat_soil'] = rg.at_node['Ksat_soil']*inputfile.unit_sim_k
-		rg.at_node['Ksat_soil'] = rg.at_node['Ksat_soil']*inputfile.kKs
+		rg.at_node['Ksat_soil'] = rg.at_node['Ksat_soil']*inputfile.unit_sim_k*inputfile.kKs
 				
 		# Reading soil depth map: raster file [mm]
 		if not os.path.exists(inputfile.fname_SoilDepth):
@@ -490,7 +489,7 @@ class model_environment_status(object):
 		else:		
 			read_esri_ascii(inputfile.fname_Ksat_ch, name='Ksat_ch', grid=rg)[1]
 				
-		rg.at_node['Ksat_ch'] = rg.at_node['Ksat_ch']*inputfile.Kloss
+		rg.at_node['Ksat_ch'] = rg.at_node['Ksat_ch']*inputfile.Kloss*0.001 #-> m/dt
 		rg.at_node['SS_loss'] = rg.at_node['river_width']*rg.at_node['Ksat_ch']*rg.at_node['river_length'] # m/dt
 		
 		# INITIAL CONDITIONS ---------------------------------------------------------------

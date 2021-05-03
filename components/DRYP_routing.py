@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from landlab.components import LossyFlowAccumulator
-import pyximport; pyximport.install()
+#import pyximport; pyximport.install()
 #from components.TransLoss import TransLossWVc # for windows
 #from TransLoss import TransLossWVc # for linux
 
