@@ -21,65 +21,89 @@ b_faq = 131
 class gwflow_EFD(object):
 		
 	def __init__(self, env_state, data_in):
-	
-		env_state.SZgrid.add_zeros('node', 'recharge', dtype=float)		
-		env_state.SZgrid.add_zeros('node', 'discharge', dtype=float)		
-		env_state.SZgrid.add_zeros('node', 'river_stage__elevation', dtype=float)		
-		env_state.SZgrid.add_zeros('node', 'water_storage_anomaly', dtype=float)
-		
-		env_state.SZgrid.at_node['topographic__elevation'] = np.array(env_state.grid.at_node['topographic__elevation'])		
+		env_state.SZgrid.add_zeros('node', 'discharge', dtype=float)
+		if data_in.run_GW == 1:
+			env_state.SZgrid.add_zeros('node', 'recharge', dtype=float)		
 					
-		act_links = env_state.SZgrid.active_links
-				
-		Kmax = map_max_of_link_nodes_to_link(env_state.SZgrid, 'Hydraulic_Conductivity')		
-		Kmin = map_min_of_link_nodes_to_link(env_state.SZgrid, 'Hydraulic_Conductivity')		
-		Ksl = map_mean_of_link_nodes_to_link(env_state.SZgrid, 'Hydraulic_Conductivity')
-		
-		self.Ksat = np.zeros(len(Ksl))		
-		self.Ksat[act_links] = Kmax[act_links]*Kmin[act_links]/Ksl[act_links]
-		
-		self.hriv = np.array(env_state.SZgrid.at_node['water_table__elevation'])		
-		self.wte_dt = np.array(env_state.SZgrid.at_node['water_table__elevation'])
-		self.faq = np.ones_like(Ksl)
-		self.faq_node = np.ones_like(self.hriv)
-				
-		if env_state.func == 1:
-			print('Transmissivity function for variable WT depth')
-		elif env_state.func == 2:
-			print('Constant transmissivity')
+			env_state.SZgrid.add_zeros('node',
+					'river_stage__elevation', dtype=float)		
+			env_state.SZgrid.add_zeros('node',
+					'water_storage_anomaly', dtype=float)
+			
+			env_state.SZgrid.at_node['topographic__elevation'] = np.array(
+							env_state.grid.at_node['topographic__elevation'])		
+						
+			act_links = env_state.SZgrid.active_links
+					
+			Kmax = map_max_of_link_nodes_to_link(
+					env_state.SZgrid, 'Hydraulic_Conductivity')		
+			Kmin = map_min_of_link_nodes_to_link(
+					env_state.SZgrid, 'Hydraulic_Conductivity')		
+			Ksl = map_mean_of_link_nodes_to_link(
+					env_state.SZgrid, 'Hydraulic_Conductivity')
+			
+			self.Ksat = np.zeros_like(Ksl)		
+			self.Ksat[act_links] = Kmax[act_links]*Kmin[act_links]/Ksl[act_links]
+			
+			self.hriv = np.array(env_state.SZgrid.at_node['water_table__elevation'])		
+			self.wte_dt = np.array(env_state.SZgrid.at_node['water_table__elevation'])
+			self.faq = np.ones_like(Ksl)
+			self.faq_node = np.ones_like(self.hriv)
+			self.qo = np.ones_like(self.hriv)
+			self.Ks = np.array(env_state.SZgrid.at_node['Hydraulic_Conductivity']
+					*env_state.fc/env_state.grid.at_node['saturated_water_content']
+					)
+			print('************************************************************')		
+			if env_state.func == 1:
+				print('Transmissivity function for variable WT depth')
+			elif env_state.func == 2:
+				print('Constant transmissivity')
+			else:
+				print('Unconfined conditions: variable thickness')
+			print('Change approach in setting_file: line 26')
+			print('************************************************************')
+			
+			# Following Fan et al. (2013)
+			if env_state.func == 1 or env_state.func == 2:
+				dzdl = env_state.SZgrid.calc_grad_at_link(
+						env_state.SZgrid.at_node['topographic__elevation'])
+				a_faq = map_mean_of_link_nodes_to_link(
+						env_state.SZgrid, 'SZ_a_aq')
+				b_faq = map_mean_of_link_nodes_to_link(
+						env_state.SZgrid, 'SZ_b_aq')
+				self.faq = a_faq/(1+b_faq*np.abs(dzdl))
+				self.faq_node = map_max_of_node_links_to_node(
+						env_state.SZgrid, self.faq)
+			self.zm = map_mean_of_link_nodes_to_link(
+					env_state.SZgrid, 'topographic__elevation')
+			Duz_aux = map_max_of_link_nodes_to_link(
+					env_state.grid, 'Soil_depth')
+			self.zm = np.array(self.zm - Duz_aux*0.001)
+			self.flux_out = 0
+			self.act_fix_link = 0
+			
+			A = np.power(env_state.SZgrid.dx, 2)		
+			Ariv = (env_state.grid.at_node['river_width']
+					* env_state.grid.at_node['river_length'])
+			self.W =  Ariv / env_state.SZgrid.dx	
+			kriv = Ariv
+			kriv[Ariv != 0] = 1/Ariv[Ariv != 0]
+			self.kriv = kriv
+			self.kaq = 1/A
+			self.kAriv = Ariv*self.kaq
+			self.f = 30
+			self.dh = np.zeros_like(Ariv)
+			self.dtSZ = data_in.dtSZ/data_in.dt
+			if len(env_state.SZgrid.open_boundary_nodes) > 0:			
+				self.fixed_links = env_state.SZgrid.links_at_node[
+					env_state.SZgrid.open_boundary_nodes]
+				self.act_fix_link = 1
+			self.C_factor = np.array(data_in.GW_Cond_factor)
 		else:
-			print('Unconfined conditions: variable thickness')
-		print('Change approach in setting_file: line 26')
-		
-		
-		if env_state.func == 1 or env_state.func == 2:
-			dzdl = env_state.SZgrid.calc_grad_at_link(env_state.SZgrid.at_node['topographic__elevation'])
-			a_faq = map_mean_of_link_nodes_to_link(env_state.SZgrid, 'SZ_a_aq')
-			b_faq = map_mean_of_link_nodes_to_link(env_state.SZgrid, 'SZ_b_aq')
-			self.faq = a_faq/(1+b_faq*np.abs(dzdl))
-			self.faq_node = map_max_of_node_links_to_node(env_state.SZgrid, self.faq)
-		self.zm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'topographic__elevation')
-		self.flux_out = 0
-		self.act_fix_link = 0
-		
-		A = np.power(env_state.SZgrid.dx,2)		
-		Ariv = (env_state.grid.at_node['river_width']
-				* env_state.grid.at_node['river_length'])
-		self.W =  Ariv / env_state.SZgrid.dx	
-		kriv = Ariv
-		kriv[Ariv != 0] = 1/Ariv[Ariv != 0]
-		self.kriv = kriv
-		self.kaq = 1/A
-		self.kAriv = Ariv*self.kaq
-		self.f = 30
-		self.dh = np.zeros_like(Ariv)
-		
-		if len(env_state.SZgrid.open_boundary_nodes) > 0:			
-			self.fixed_links = env_state.SZgrid.links_at_node[
-				env_state.SZgrid.open_boundary_nodes]
-			self.act_fix_link = 1
-		
-		
+			self.wte_dt = np.array(env_state.SZgrid.at_node['water_table__elevation'])
+			self.dh = np.array(self.wte_dt*0.0)
+			self.flux_out = 0.0
+			
 	def add_second_layer_gw(self, env_state, thickness, Ksat, Sy, Ss):	
 		# thickness:	Thickness of the deep aquifer
 		# Ksat:			Saturated hydraulic conductivity of the deep aquifer
@@ -107,7 +131,7 @@ class gwflow_EFD(object):
 		Kmin = map_min_of_link_nodes_to_link(env_state.SZgrid, 'Ksat_2')		
 		Ksl = map_mean_of_link_nodes_to_link(env_state.SZgrid, 'Ksat_2')
 		
-		self.Ksat_2 = np.zeros(len(Ksl))		
+		self.Ksat_2 = np.zeros_like(Ksl)		
 		self.Ksat_2[act_links] = Kmax[act_links]*Kmin[act_links]/Ksl[act_links]		
 		env_state.SZgrid.at_node['HEAD_2'][:] = np.array(env_state.SZgrid.at_node['water_table__elevation'])		
 
@@ -183,8 +207,8 @@ class gwflow_EFD(object):
 			dhdl_2 = env_state.SZgrid.calc_grad_at_link(env_state.SZgrid.at_node['HEAD_2'])
 			
 			# mean hydraulic head at the face of the of the patch
-			qxy_1 = np.zeros(len(self.Ksat))
-			qxy_2 = np.zeros(len(self.Ksat_2))
+			qxy_1 = np.zeros_like(self.Ksat)
+			qxy_2 = np.zeros_like(self.Ksat_2)
 			
 			hm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'water_table__elevation')
 			bm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'BOT_2')
@@ -263,20 +287,21 @@ class gwflow_EFD(object):
 				env_state.SZgrid.at_node['water_table__elevation'][:])
 		
 		pass
-	
+	#@profile
 	def run_one_step_gw(self, env_state, dt, tht_dt, Droot):
 		"""Function to update water table depending on the unsaturated zone.
 		Parameters:
 		Droot:		Rooting depth [mm]
 		tht_dt:		Water content at time t [-]
-		Duz:		Unsaturated zone depth
-		env_state:	grid:	z:	Topograhic elevation
-							h:	water table
-							fs:	Saturated water content
-							fc:	Field capacity
-							Sy:	Specific yield
-							dq:	water storage anomaly
-							f:	effective aquifer depth
+		Duz:		Unsaturated zone depth [m]
+		env_state:	grid:	z:	Topograhic elevation [m]
+							h:	water table [m]
+							fs:	Saturated water content [-]
+							fc:	Field capacity [-]
+							Sy:	Specific yield [-]
+							dq:	water storage anomaly [m]
+							f:	effective aquifer depth [m]
+							SS_loss: transmission losses [m3 h-1]
 					
 		Groundwater storage variation
 		"""
@@ -289,18 +314,18 @@ class gwflow_EFD(object):
 			env_state.SZgrid.dx, env_state.SZgrid.core_nodes
 			)
 	
-		stage = env_state.grid.at_node['Q_ini'] * self.kriv
+		stage = env_state.grid.at_node['Q_ini'] * self.kriv *0.0
 		
-		aux_riv = np.ones(len(stage))
+		aux_riv = np.ones_like(stage)
 		
 		aux_riv[stage > 0] = 0
 		
-		Tch = exponential_T(env_state.grid.at_node['SS_loss'], STR_RIVER,
-				env_state.grid.at_node['river_topo_elevation'], self.hriv)
+		#Tch = exponential_T(env_state.grid.at_node['SS_loss'], STR_RIVER,
+		#		env_state.grid.at_node['river_topo_elevation'], self.hriv)
 		
-		dts_riv = time_step_confined(COURANT_1D, env_state.SZgrid.at_node['SZ_Sy'],
-						Tch/self.W, 0.25*(env_state.SZgrid.dx - self.W),
-						env_state.riv_nodes)
+		#dts_riv = time_step_confined(COURANT_1D, env_state.SZgrid.at_node['SZ_Sy'],
+		#				Tch/self.W, 0.25*(env_state.SZgrid.dx - self.W),
+		#				env_state.riv_nodes)
 		
 		#dtp = np.nanmin([dt, dts, dts_riv])
 		dtp = np.nanmin([dt, dts])
@@ -320,7 +345,7 @@ class gwflow_EFD(object):
 				env_state.SZgrid.at_node['topographic__elevation'],
 				env_state.SZgrid.at_node['water_table__elevation']
 				)
-						
+			
 			# Make water table always above the bottom elevation
 			if env_state.func == 2:
 				env_state.SZgrid.at_node['water_table__elevation'][:] = np.maximum(
@@ -335,29 +360,27 @@ class gwflow_EFD(object):
 			
 			# Calculate transmissivity
 			T = transmissivity(env_state, self.Ksat, act_links, self.faq, self.zm)
-						
+					
 			# Calculate the hydraulic gradients			
 			dhdl = env_state.SZgrid.calc_grad_at_link(env_state.SZgrid.at_node['water_table__elevation'])
 			
 			# Calculate flux per unit length at each face
-			qs = np.zeros(len(self.Ksat))
+			qs = np.zeros_like(self.Ksat)
 			qs[act_links] = -T[act_links]*dhdl[act_links]
 			
 			if self.act_fix_link == 1:
 				self.flux_out += (np.sum(qs[self.fixed_links])/env_state.SZgrid.dx)*dtsp
 				
 			# Calculate flux head boundary conditions
-			dfhbc = exponential_T(env_state.SZgrid.at_node['SZ_FHB'], 60,
-				env_state.SZgrid.at_node['topographic__elevation'],
-				env_state.SZgrid.at_node['water_table__elevation']
-				)
+			dfhbc = env_state.SZgrid.at_node['SZ_FHB']
+			
 			self.flux_out += np.sum(dfhbc)
 			
 			# Calculate flux gradient
 			dqsdxy = (-env_state.SZgrid.calc_flux_div_at_node(qs)
 					- dfhbc + env_state.SZgrid.at_node['recharge']/dt)
 			
-			# Calculate river cell flux
+			# Calculate river cell flux [m3 h-1]
 			Tch = exponential_T(env_state.grid.at_node['SS_loss'], STR_RIVER,
 				env_state.grid.at_node['river_topo_elevation'], self.hriv)
 
@@ -366,10 +389,14 @@ class gwflow_EFD(object):
 			
 			stage_aux = np.array(stage)
 			stage_aux[diff_stage < 0] = 0
-			
-			qs_riv = -(Tch*(diff_stage-stage_aux)*50 / (env_state.SZgrid.dx - self.W))
+						
+			qs_riv = -(Tch*(diff_stage-stage_aux)*self.C_factor)#/
+				#(np.where(env_state.SZgrid.dx - self.W <= 0, env_state.SZgrid.dx,
+				#env_state.SZgrid.dx - self.W)))
 			qs_riv[qs_riv < 0] = qs_riv[qs_riv < 0]*aux_riv[qs_riv < 0]
+			#print(qs_riv[13], Tch[13],diff_stage[13]-stage_aux[13],self.C_factor)
 			
+			# river mass balance
 			dqsdxy += self.kaq*qs_riv
 			
 			# Regularization approach for aquifer cells
@@ -390,21 +417,47 @@ class gwflow_EFD(object):
 			# Regularization approach for river cells
 			dqs_riv = regularization_T(
 				env_state.grid.at_node['river_topo_elevation'],
-				self.hriv, 	self.f, -self.kriv*qs_riv, REG_FACTOR
+				self.hriv, 	self.f, -qs_riv, REG_FACTOR
 				)
 			
-			# Update the head elevations
-			env_state.SZgrid.at_node['water_table__elevation'] += ((dqsdxy-dqs)
-				* dtsp / env_state.SZgrid.at_node['SZ_Sy'])
-						
-			self.hriv += (-self.kriv*qs_riv - dqs_riv)*dtsp/env_state.SZgrid.at_node['SZ_Sy']
-			
 			# Update storage change for soil-gw interactions
-			env_state.SZgrid.at_node['water_storage_anomaly'][:] = (dqsdxy-dqs) *dtsp			
-			fun_update_UZ_SZ_depth(env_state, tht_dt, Droot)
+			env_state.SZgrid.at_node['water_storage_anomaly'][:] = (dqsdxy-dqs)*dtsp
 			
+			# Update the head elevations
+			env_state.SZgrid.at_node['water_table__elevation'] += (np.array(
+					env_state.SZgrid.at_node['water_storage_anomaly'][:])
+					/ env_state.SZgrid.at_node['SZ_Sy'])
+			
+			# update river ghost cell
+			self.hriv += -(qs_riv+dqs_riv)*dtsp/env_state.SZgrid.at_node['SZ_Sy']
+			#print(qs_riv[13]+dqs_riv[13])
+						
+			#print(env_state.SZgrid.at_node['water_storage_anomaly'][14])
+			#fun_update_UZ_SZ_depth(env_state, tht_dt, Droot)
+			env_state.SZgrid.at_node['water_table__elevation'][:] = (
+				fun_update_UZ_SZ_depth(
+				np.array(env_state.SZgrid.at_node['water_storage_anomaly']),#dS
+				np.array(self.wte_dt),#h0
+				np.array(tht_dt),#tht_dt
+				np.array(env_state.grid.at_node['saturated_water_content']),#tht_sat
+				np.array(env_state.fc),#tht_fc
+				np.array(env_state.SZgrid.at_node['SZ_Sy']),#Sy
+				np.array(env_state.SZgrid.at_node['topographic__elevation']
+				- Droot)#zr)
+				))
+			
+#			env_state.SZgrid.at_node['discharge'][:] += np.where((
+#		env_state.SZgrid.at_node['topographic__elevation']
+#		- env_state.SZgrid.at_node['water_table__elevation']) <= 0.0,
+#		- (env_state.SZgrid.at_node['topographic__elevation']
+#		- env_state.SZgrid.at_node['water_table__elevation'])*dtht, 0.0)
+#		
+#	env_state.SZgrid.at_node['water_table__elevation'][:] = np.minimum(
+#		env_state.SZgrid.at_node['water_table__elevation'],
+#		env_state.SZgrid.at_node['topographic__elevation'])
+						
 			# Calculate total discharge
-			env_state.SZgrid.at_node['discharge'][:] += (dqs + dqs_riv*self.kAriv)*dtsp
+			env_state.SZgrid.at_node['discharge'][:] += (dqs + dqs_riv*self.kaq)*dtsp
 			
 			# Calculate maximum time step
 			dtsp = time_step_confined(COURANT_2D, env_state.SZgrid.at_node['SZ_Sy'],
@@ -412,8 +465,8 @@ class gwflow_EFD(object):
 				env_state.SZgrid.dx, env_state.SZgrid.core_nodes
 				)
 			
-			dtsp_riv = time_step_confined(COURANT_1D, env_state.SZgrid.at_node['SZ_Sy'],
-						Tch/self.W, 0.02*(env_state.SZgrid.dx - self.W), env_state.riv_nodes)
+			#dtsp_riv = time_step_confined(COURANT_1D, env_state.SZgrid.at_node['SZ_Sy'],
+			#			Tch/self.W, 0.02*(env_state.SZgrid.dx - self.W), env_state.riv_nodes)
 			
 			#dtsp = np.min([dtsp, dtsp_riv])			
 			
@@ -432,9 +485,10 @@ class gwflow_EFD(object):
 		self.dh = np.array(env_state.SZgrid.at_node['water_table__elevation'])-self.wte_dt
 		self.wte_dt = np.array(env_state.SZgrid.at_node['water_table__elevation'])
 		
-		env_state.SZgrid.at_node['discharge'][:] *= (1/dt)
+		env_state.SZgrid.at_node['discharge'][:] *= (1/self.dtSZ)
 		
-		env_state.grid.at_node['riv_sat_deficit'][:] = (np.power(env_state.grid.dx,2)
+		env_state.grid.at_node['riv_sat_deficit'][:] = (
+				np.power(env_state.grid.dx, 2)
 				* np.array(env_state.grid.at_node['river_topo_elevation'][:]
 				- env_state.SZgrid.at_node['water_table__elevation'][:])
 				)
@@ -442,10 +496,24 @@ class gwflow_EFD(object):
 		env_state.grid.at_node['riv_sat_deficit'][env_state.grid.at_node['riv_sat_deficit'][:] < 0] = 0.0
 		
 		if self.act_fix_link == 1:
-				self.flux_out *= 1/dt
+				self.flux_out *= 1/self.dtSZ
 		
 		pass
 	
+	def recharge(self, env_state, dt):
+		k = (env_state.SZgrid.at_node['water_table__elevation']
+			- env_state.grid.at_node['topographic__elevation']
+			+ env_state.Droot*0.001)	
+		k[k > 0] = 0
+		aux = np.array(k)
+		aux[aux < 0] = 1
+		k[k != 0] = np.exp(dt*self.Ks[k != 0]#env_state.grid.at_node['Hydraulic_Conductivity'][k != 0]/
+					/k[k != 0])
+		env_state.SZgrid.at_node['recharge'] = (self.qo*k 
+				+ env_state.grid.at_node['recharge']*(1-k))+self.qo*(1-aux)
+		
+		self.qo = np.array(env_state.SZgrid.at_node['recharge'])*aux
+		
 	def SZ_potential_ET(self, env_state, pet_sz):
 		SZ_aet = (env_state.SZgrid.at_node['water_table__elevation']
 			- env_state.grid.at_node['topographic__elevation']
@@ -456,7 +524,7 @@ class gwflow_EFD(object):
 
 def transmissivity(env_state, Ksat, act_links, f, zm):
 
-	T = np.zeros(len(Ksat))
+	T = np.zeros_like(Ksat)
 	
 	if env_state.func != 2:
 		hm = map_mean_of_link_nodes_to_link(env_state.SZgrid,'water_table__elevation')
@@ -471,7 +539,62 @@ def transmissivity(env_state, Ksat, act_links, f, zm):
 	
 	return T
 
-def fun_update_UZ_SZ_depth(env_state, tht_dt, Droot):
+def fun_update_UZ_SZ_depth(dS, h0, tht_dt, tht_sat, tht_fc, Sy, zr):
+	"""Function to update water table depending on both water content of
+	the unsaturated zone.
+	Parameters:
+	Droot:		Rooting depth [mm]
+	tht_dt:		Water content at time t [-]
+	Duz:		Unsaturated zone depth
+	env_state:	grid:	z:	Topograhic elevation
+						h:	water table
+						fs:	Saturated water content
+						fc:	Field capacity
+						Sy:	Specific yield
+						dq:	water storage anomaly
+	Groundwater storage variation
+	"""	
+	#h0 = env_state.SZgrid.at_node['water_table__elevation'] - \
+	#	env_state.SZgrid.at_node['water_storage_anomaly']/ \
+	#	env_state.SZgrid.at_node['SZ_Sy']
+	
+	tht_dt = np.where(dS >= 0.0,
+		tht_sat - tht_dt,
+		tht_sat - tht_fc,
+		)
+	
+	alpha = np.where(dS >= 0.0,
+		1 - Sy/tht_dt,
+		1 - tht_dt/Sy,
+		)
+	
+	beta = np.where(dS >= 0.0,
+		dS/tht_dt, dS/Sy
+		)
+	
+	dSp = np.where(dS >= 0.0,
+		(zr-h0)*Sy, tht_dt*(h0-zr)
+		)
+	
+	dSp[dSp <= 0] = 0.0
+	
+	C = np.where(np.abs(dSp) < np.abs(dS), 0, 1)	
+	alpha = np.where(np.abs(dSp) < np.abs(dS), alpha, 0)	
+	beta = np.where(np.abs(dSp) < np.abs(dS), beta, 0)
+	
+	alpha = np.where(np.abs(dSp) == 0, 0, alpha)	
+	beta = np.where(np.abs(dSp) == 0, 0, beta)
+		
+	D = np.where(h0 > zr, 0, 1)
+	
+	gama = dS/tht_dt
+	lambd = dS/Sy,
+
+	h = h0 +(zr-h0)*alpha + beta + ((1-D)*gama + lambd*D)*C
+		
+	return h
+
+def fun_update_UZ_SZ_depth_new(env_state, tht_dt, Droot):
 	"""Function to update water table depending on both water content of
 	the unsaturated zone.
 	Parameters:
@@ -529,7 +652,7 @@ def fun_update_UZ_SZ_depth(env_state, tht_dt, Droot):
 		- env_state.SZgrid.at_node['water_table__elevation']) <= 0.0,
 		- (env_state.SZgrid.at_node['topographic__elevation']
 		- env_state.SZgrid.at_node['water_table__elevation'])*dtht, 0.0)
-			
+		
 	env_state.SZgrid.at_node['water_table__elevation'][:] = np.minimum(
 		env_state.SZgrid.at_node['water_table__elevation'],
 		env_state.SZgrid.at_node['topographic__elevation'])
@@ -564,7 +687,7 @@ def storage_2layer(env_state):
 		)
 	return storage_1+storage_2
 
-def storage_uz_sz(env_state, tht, dh):
+def storage_uz_sz(env_state, tht, dh, data_in):
 	""" Total storage in the saturated zone
 	Parameters:
 		env_state:	state variables and model parameters			
@@ -591,12 +714,79 @@ def storage_uz_sz(env_state, tht, dh):
 	
 	str_uz = dtht*(str_uz1-str_uz0)
 	
-	str_sz = (dh-str_uz1+str_uz0)*env_state.SZgrid.at_node['SZ_Sy']
+	str_sz = (dh-str_uz1+str_uz0)
 	
+	if data_in.run_GW == 1:
+		str_sz = str_sz*env_state.SZgrid.at_node['SZ_Sy']
+		
 	total = np.sum(str_sz[env_state.SZgrid.core_nodes]
 		+ str_uz[env_state.SZgrid.core_nodes]
 		)
+	
 	return total
+
+def storage_uz_sz_new(env_state, tht, dh):
+	""" Total storage in the saturated zone
+	Parameters:
+		env_state:	state variables and model parameters			
+	Output:
+		total:		Volume of water stored in the saturated zone [m]
+	"""
+	# Water table depth at t1
+	Duz1 = (-env_state.SZgrid.at_node['water_table__elevation']
+		+env_state.grid.at_node['topographic__elevation'])	
+	
+	# Water table depth at t0
+	Duz0 = (-env_state.SZgrid.at_node['water_table__elevation'] - dh
+		+ env_state.grid.at_node['topographic__elevation'])
+	
+	# Saturated zone
+	Dsz0 = Duz0 - env_state.Droot*0.001
+	Dsz1 = Duz1 - env_state.Droot*0.001
+	
+	# Unsaturated zone
+	Duz1 = np.array(Dsz1)
+	Duz0 = np.array(Dsz0)
+
+	# Make unsaturated zone depth 0 if water table below rooting depth
+	Duz1[Duz1 > 0] = 0
+	Duz0[Duz0 > 0] = 0
+	
+	# Make saturated zone depth 0 if water table above rooting depth
+	Dsz1[Dsz1 < 0] = 0
+	Dsz0[Dsz0 < 0] = 0
+	
+	# variation
+	dDuz = -(Duz1 - Duz0)
+	
+	# Change in Storage - Unsaturated zone
+	dtht = (tht - env_state.grid.at_node['saturated_water_content'])
+	
+	S = dDuz*dtht
+	
+	dDuz[dDuz < 0] = 0
+	
+	dtht = (env_state.fc - tht)
+	
+	S += dDuz*dtht
+	
+	# Change in storage - Saturated zone
+	
+	S += (Dsz1 - Dsz0)*env_state.SZgrid.at_node['SZ_Sy']
+	
+	#tht[dh < 0] = env_state.fc[dh < 0]
+	
+	#dtht = env_state.grid.at_node['saturated_water_content'] - tht
+	
+	#str_uz = dtht*(str_uz1-str_uz0)
+	
+	#str_sz = (dh-str_uz1+str_uz0)*env_state.SZgrid.at_node['SZ_Sy']
+	
+	#total = np.sum(str_sz[env_state.SZgrid.core_nodes]
+	#	+ str_uz[env_state.SZgrid.core_nodes]
+	#	)
+		
+	return np.sum(S[env_state.SZgrid.core_nodes])
 
 def smoth_func_L1(h, hr, r, dq, *nodes):
 
@@ -606,7 +796,7 @@ def smoth_func_L1(h, hr, r, dq, *nodes):
 	aux = np.where(dq > 0, 1, aux)
 	
 	if nodes:
-		p = np.zeros(len(aux))
+		p = np.zeros_like(aux)
 		p[nodes] = 1
 		aux *= p
 	
@@ -624,7 +814,7 @@ def smoth_func_L2(h, hr, d, r,*nodes):
 	FSs = np.where(u >= 1, fSs, 0)
 		
 	if nodes:
-		aux = np.zeros(len(aux))
+		aux = np.zeros_like(aux)
 		aux[nodes] = 1
 		FSs *= aux
 		FSy *= aux
@@ -634,7 +824,7 @@ def smoth_func_L2(h, hr, d, r,*nodes):
 def river_flux(h, hriv, C, A, *nodes):
 	q_riv = (h-hriv)*C/A
 	if nodes:
-		p = np.zeros(len(aux))
+		p = np.zeros_like(aux)
 		p[nodes] = 1
 		aux *= p
 	return  q_riv
@@ -644,7 +834,7 @@ def smoth_func_T(h, hriv, r, f, dq, *nodes):
 	SF = np.where(SF > 1, SF, 0)
 	SF = np.where(SF > 0, 1 - np.exp(SF/r), 0)
 	if nodes:
-		p = np.zeros(len(SF))
+		p = np.zeros_like(SF)
 		p[nodes] = 1
 		SF *= p
 	return SF
@@ -654,29 +844,33 @@ def smoth_func(h, hriv, r, dq, *nodes):
 	aux = np.where(aux > 0, aux, 0)
 	aux = np.where(aux > 1, 1, aux)
 	if nodes:
-		p = np.zeros(len(aux))
+		p = np.zeros_like(aux)
 		p[nodes] = 1
 		aux *= p
 	return  np.where(aux <= 0, 0, aux)
 	
-# regularization function for unconfined
+ 
 def regularization(zm, hm, bm, dq, r):
-	# zm:	surface elevation
-	# hm:	hydraulic head
-	# bm:	bottom elevation aquifer
-	# dq:	flux per unit area
-	# r:	regularization factor
+	"""regularization function for unconfined
+	zm:	surface elevation
+	hm:	hydraulic head
+	bm:	bottom elevation aquifer
+	dq:	flux per unit area
+	r:	regularization factor
+	"""
 	aux = (hm-bm)/(zm-bm)
 	aux = np.where((aux-1) > 0, 1, aux)
 	return np.exp((aux-1)/r)*dq*np.where(dq > 0, 1, 0)
 
-# regularization function for confined aquifers
+
 def regularization_T(zm, hm, f, dq, r):
-	# zm:	surface elevation
-	# hm:	hydraulic head
-	# f:	e-folding depth
-	# dq:	flux per unit area
-	# r:	regularization factor
+	"""regularization function for confined aquifers
+	zm:	surface elevation
+	hm:	hydraulic head
+	f:	e-folding depth
+	dq:	flux per unit area
+	r:	regularization factor
+	"""
 	aux = (hm-zm)/f+1	
 	aux = np.where(aux > 0,aux,0)
 	return np.exp((aux-1)/r)*dq*np.where(dq > 0,1,0)
@@ -684,9 +878,11 @@ def regularization_T(zm, hm, f, dq, r):
 def exponential_T(Ksat, f, z, h):
 	return Ksat*f*np.exp(-np.maximum(z-h,0)/f)
 
-# Maximum time step for unconfined aquifers
+
 def time_step(D, Sy, Ksat, h, zb, dx, *nodes):
-	# D:	Courant number
+	""" Maximum time step for unconfined aquifers
+	D:	Courant number
+	"""
 	T = (h - zb)*Ksat
 	dt = D*Sy*np.power(dx,2)/(4*T)
 	if nodes:		
@@ -695,9 +891,10 @@ def time_step(D, Sy, Ksat, h, zb, dx, *nodes):
 		dt = np.nanmin(dt[dt > 0])
 	return dt
 
-# Maximum time step for confined aquifers
 def time_step_confined(D, Sy, T, dx, *nodes):
-	# D:	Courant number
+	"""Maximum time step for confined aquifers
+	D:	Courant number
+	"""
 	dt = D*Sy*np.power(dx, 2)/(4*T)	
 	if nodes:		
 		dt = np.nanmin((dt[nodes])[dt[nodes] > 0])

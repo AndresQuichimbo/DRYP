@@ -20,3 +20,6 @@ ID,Model
 18,../Channel/GW_1D_input_mf.dmp
 19,../Channel/GW_1D_input_2L.dmp
 20,../Channel/GW_1D_input_tst.dmp
+21,../Kenya/EW_ERA_input_3h.dmp
+22,../Kenya/EW_MSWEAP_input_3h.dmp
+23,../Kenya/EW_IMERG_input_3h.dmp

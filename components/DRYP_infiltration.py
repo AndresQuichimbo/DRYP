@@ -7,6 +7,7 @@ class infiltration(object):
 	def __init__(self, env_state, data_in):		
 		# K_sat:	Saturated hydraulic conductivity	
 		# PSI_f:	Wetting front suction head
+		print('************************************************************')
 		if data_in.inf_method == 1:
 			print('Infiltration approach: Philips')			
 		elif data_in.inf_method == 2:
@@ -111,14 +112,14 @@ def infiltration_model(rainfall,K_sat,PSI_f,Droot,SORP0,L_0,Lsat,t_0,Ft0,rain_da
 	inode_inf_aux = np.where(rainfall > 0.0)[0]
 	
 	if len(inode_inf_aux) > 0:
-		t_i = np.zeros(len(rainfall))
+		t_i = np.zeros_like(rainfall)
 		if inf_method == 0: # SCHAAKE METHOD
 			ga_kdt = args[0]
-			SORP = np.zeros(len(rainfall))
-			Ft = np.zeros(len(rainfall))
+			SORP = np.zeros_like(rainfall)
+			Ft = np.zeros_like(rainfall)
 			inf_dt, excess_dt = SCHAAKE(rainfall, ga_kdt, Lsat, L_0)
 		elif inf_method == 1: # PHILIPS EQUATION
-			F = np.zeros(len(rainfall))
+			F = np.zeros_like(rainfall)
 			SORP = np.where(Droot == 0,0.0,np.sqrt(2*K_sat*PSI_f*((Lsat-L_0)/Droot)))
 			if rain_day_before == 1:
 				SORP[inode_inf_aux] = SORP0[inode_inf_aux]
@@ -129,7 +130,7 @@ def infiltration_model(rainfall,K_sat,PSI_f,Droot,SORP0,L_0,Lsat,t_0,Ft0,rain_da
 										SORP, F,
 										np.array(t_i))
 		elif inf_method == 2: # UPSACALED GREEN & AMPT METHOD
-			Ft = np.zeros(len(rainfall))
+			Ft = np.zeros_like(rainfall)
 			mu_logks = args[0][0]
 			sigma_ks = args[0][1]
 			SORP = np.where(Droot == 0,0.0,PSI_f*((Lsat-L_0)/Droot))
@@ -141,7 +142,7 @@ def infiltration_model(rainfall,K_sat,PSI_f,Droot,SORP0,L_0,Lsat,t_0,Ft0,rain_da
 											mu_logks,
 											sigma_ks)
 		elif inf_method == 3: # MODIFIED GREEN AND AMPT EQUATION
-			F = np.zeros(len(rainfall))
+			F = np.zeros_like(rainfall)
 			SORP = np.where(Droot == 0,0.0,np.sqrt(2*K_sat*PSI_f*((Lsat-L_0)/Droot)))
 			if rain_day_before == 1:
 				SORP[inode_inf_aux] = SORP0[inode_inf_aux]
@@ -258,7 +259,7 @@ def Mod_GA(P,ks,Sp,F,t,dt):
 	return F_tf, I, RO
 	
 def Newthon_Rap_Mod_GA(P,ks,Sp,F,t,tp,to_0):
-	error = np.zeros(len(F))
+	error = np.zeros_like(F)
 	aux_1 = tp-t
 	aux_2 = t+1-tp
 	aux = aux_1*aux_2

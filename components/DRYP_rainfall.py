@@ -33,6 +33,9 @@ class rainfall(object):
 			else:# Read time series of precipitation	
 				fpre = pd.read_csv(inputfile.fname_TSPre)
 				fpre["Date"] = pd.to_datetime(fpre['Date'])#,format = '%d/%m/%Y %H:%M')
+				if inputfile.dt > 60:
+					fpre.index = pd.DatetimeIndex(fpre['Date'])
+					fpre = (fpre.resample(inputfile.Agg_method).sum()).reset_index()
 				time_pre = fpre["Date"]
 			
 			# Read time series of evapotranspiration
@@ -198,8 +201,9 @@ class input_datasets_bigfiles(object):
 				j_te = (int(idate_pet.strftime('%-j'))-1)*self.nsteps_day_pet + hour_pet 
 				fname_pet = inputfile.fname_TSMeteo + '_' + str(idate_pet.year) + '.nc'
 				self.fpet = Dataset(fname_pet, 'r')
-				PET = (self.fpet.variables['pet'][j_tp][:]).flatten()
+				PET = (self.fpet.variables['pet'][j_tp][:]).flatten()				
 				self.read_before_pet = 0
+			PET[PET < 0] = 0
 			self.PET += PET			
 			self.year_pet = int(idate_pet.year)
 			idate_pet += timedelta(hours=1)

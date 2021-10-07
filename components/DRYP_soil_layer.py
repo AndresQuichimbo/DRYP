@@ -3,6 +3,7 @@ import numpy as np
 class swbm(object):
 
 	def __init__(self, env_state, data_in):
+		
 		# AET_dt:	Actual evapotranspiration
 		# THT_dt:	Soil water content [-]
 		# PCL_dt:	Percolation [mm]
@@ -74,7 +75,7 @@ class swbm(object):
 		self.pcl_dt[act_nodes] = np.array(D)		
 		self.tht_dt[act_nodes] = np.array(L/ds)		
 		self.sro_dt[act_nodes] = RO
-		WSRI = np.zeros(len(act_nodes))
+		WSRI = np.zeros_like(act_nodes)
 		WSRI[PET != 0] = AET[PET != 0]/PET[PET != 0]
 		self.WRSI[act_nodes] = WSRI
 		self.gwe_dt = pet - self.aet_dt		
@@ -150,8 +151,8 @@ def SWBM(I, PET, Kc, L0, SMD_0, z_soil, fs, fc, wp):
 	Lfc =  z_soil*fc
 	TAW =  Lfc - Lwp
 	RAW = Pc * TAW
-	L_RAW = Lfc-RAW
-	L_TAW = Lfc-TAW
+	L_RAW = Lfc - RAW
+	L_TAW = Lfc - TAW
 	
 	beta = (L0-L_TAW) / (L_RAW-L_TAW)
 	beta[beta > 1] = 1
@@ -162,7 +163,7 @@ def SWBM(I, PET, Kc, L0, SMD_0, z_soil, fs, fc, wp):
 	AET[AET < 0] = 0
 	L = L0+I-AET
 	AET = np.where((L-Lwp) < 0,L0+I-Lwp,AET)
-	L = L0+I-AET
+	L = L0 + I - AET
 	D = np.where(L-Lfc > 0.0,L-Lfc,0.0)
 	L = L-D
 	SMD = np.where(L < Lfc,SMD_0+AET-I,0)

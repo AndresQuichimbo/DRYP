@@ -1,12 +1,13 @@
 import pandas as pd
 import pytest
 from run_DRYP_BD import run_DRYP
+#from run_DRYP_BDv2 import run_DRYP
 import time
 
 filename_list = 'DRYP_model_list.txt'
 fmodels = pd.read_csv(filename_list)
 
-for nmodel in [12]:#, 12, 13, 14]:
+for nmodel in [22]:#, 1#2, 13, 14, -22 23]:
 
 	filename_inputs = fmodels['Model'][nmodel]
 	

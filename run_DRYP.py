@@ -8,7 +8,8 @@ from components.DRYP_io import inputfile, model_environment_status
 from components.DRYP_infiltration import infiltration
 from components.DRYP_rainfall import rainfall
 from components.DRYP_ABM_connector import ABMconnector
-from components.DRYP_routing import runoff_routing
+#from components.DRYP_routing import runoff_routing
+from components.DRYP_flow_accum import runoff_routing
 from components.DRYP_soil_layer import swbm
 from components.DRYP_groundwater_EFD import gwflow_EFD, storage, storage_uz_sz
 from components.DRYP_Gen_Func import (
@@ -25,7 +26,7 @@ from components.DRYP_Gen_Func import (
 # swbm:		Soil water balance
 # ro:		Routing - Flow accumulator
 # gw:		Groundwater flow
-
+#@profile
 def run_DRYP(filename_input):
 
 	data_in = inputfile(filename_input)
@@ -75,16 +76,10 @@ def run_DRYP(filename_input):
 			
 			for dt_pre_sub in range(data_in.dt_sub_hourly):
 				
-				swb.run_soil_aquifer_one_step(env_state,
-					env_state.grid.at_node['topographic__elevation'],
-					env_state.SZgrid.at_node['water_table__elevation'],
-					env_state.Duz,
-					swb.tht_dt)
-															
-				env_state.Duz = swb.Duz
-				
+				# get rainfall				
 				rf.run_rainfall_one_step(t_pre, t_eto, env_state, data_in)
 				
+				# estimate abstractions
 				abc.run_ABM_one_step(t_pre, env_state,
 					rf.rain, env_state.Duz, swb.tht_dt, env_state.fc,
 					env_state.grid.at_node['wilting_point'],
@@ -93,26 +88,33 @@ def run_DRYP(filename_input):
 					
 				rf.rain += abc.auz
 				
+				# estimate infiltration
 				inf.run_infiltration_one_step(rf, env_state, data_in)
 				
-				aux_usz = np.sum((swb.L_0*env_state.hill_factor)[env_state.act_nodes])
-				aux_usp = np.sum((swb_rip.L_0*env_state.riv_factor)[env_state.act_nodes])
+				aux_usz = np.sum((swb.L_0
+						* env_state.hill_factor)[env_state.act_nodes])
+				aux_usp = np.sum((swb_rip.L_0
+						* env_state.riv_factor)[env_state.act_nodes])
 				
+				# estimate soil water balance
 				swb.run_swbm_one_step(inf.inf_dt, rf.PET, env_state.Kc,
 					env_state.grid.at_node['Ksat_soil'], env_state, data_in)
-				
-				env_state.grid.at_node['riv_sat_deficit'][:] *= (swb_rip.tht_dt)
-				
+								
+				env_state.grid.at_node['riv_sat_deficit'][:] *= np.array(
+					swb_rip.tht_dt)
+				#inf.exs_dt[22] = 10
+				# estimate runoff
 				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
 				
 				tls_aux = ro.tls_flow_dt*env_state.rip_factor
 				
 				rip_inf_dt = inf.inf_dt + tls_aux
-								
+				
+				# estimate riparian water balance
 				swb_rip.run_swbm_one_step(rip_inf_dt, rf.PET, env_state.Kc,
 						env_state.grid.at_node['Ksat_ch'], env_state,
 						data_in, env_state.river_ids_nodes)
-						
+				#print(swb_rip.pcl_dt)	
 				swb_rip.pcl_dt *= env_state.riv_factor
 				swb_rip.aet_dt *= env_state.riv_factor
 				swb.pcl_dt *= env_state.hill_factor
@@ -125,7 +127,7 @@ def run_DRYP(filename_input):
 				# Water balance storage and flow
 				pre_mb.append(np.sum(rf.rain[env_state.act_nodes]))
 				exs_mb.append(np.sum(inf.exs_dt[env_state.act_nodes]))
-				tls_mb.append(np.sum(tls_aux[env_state.act_nodes]))
+				tls_mb.append(np.sum(ro.tls_dt[env_state.act_nodes]))
 				aux_usz1 = np.sum((swb.L_0*env_state.hill_factor)[env_state.act_nodes])
 				aux_usp1 = np.sum((swb_rip.L_0*env_state.riv_factor)[env_state.act_nodes])
 				
@@ -135,19 +137,35 @@ def run_DRYP(filename_input):
 				rch_mb.append(np.sum(rech[env_state.act_nodes]))				
 				#aux_ssz = storage_uz_sz(env_state, 0, 0)			
 				
-				if dt_GW == data_in.dtSZ:
-					# Change units to m/h
-					env_state.SZgrid.at_node['discharge'][:] = 0.0
-					env_state.SZgrid.at_node['recharge'][:] = (rch_agg - etg_agg)*0.001 #[mm/dt]
-					gw.run_one_step_gw(env_state, data_in.dtSZ/60, swb.tht_dt,
-						env_state.Droot*0.001)
-					rch_agg = np.zeros(len(swb.L_0))
-					etg_agg = np.zeros(len(swb.L_0))
-					dt_GW = 0
-					
-				dt_GW += np.int(data_in.dt)				
+				# groundwater flux
+				if data_in.run_GW == 1:
+					if dt_GW == data_in.dtSZ:
+						# Change units to m/h
+						env_state.SZgrid.at_node['discharge'][:] = 0.0
+						env_state.SZgrid.at_node['recharge'][:] = (
+								rch_agg - etg_agg)*0.001 #[mm/dt]
+						gw.run_one_step_gw(env_state, data_in.dtSZ/60,
+							swb.tht_dt,	env_state.Droot*0.001)
+						rch_agg = np.zeros(len(swb.L_0))
+						etg_agg = np.zeros(len(swb.L_0))
+						dt_GW = 0
+						
+					dt_GW += np.int(data_in.dt)				
+								
 				
-				gws_mb.append(storage_uz_sz(env_state, np.array(swb.tht_dt), gw.dh))#-aux_ssz)
+				# update soil moisture 
+				swb.run_soil_aquifer_one_step(env_state,
+					env_state.grid.at_node['topographic__elevation'],
+					env_state.SZgrid.at_node['water_table__elevation'],
+					env_state.Duz,
+					swb.tht_dt)
+															
+				env_state.Duz = swb.Duz
+				
+				gws_mb.append(storage_uz_sz(env_state,
+						np.array(swb.tht_dt),
+						gw.dh, data_in))#-aux_ssz)
+						
 				dis_mb.append(np.sum(env_state.SZgrid.at_node['discharge'][env_state.act_nodes])-gw.flux_out)
 				
 				#Extract average state and fluxes				
@@ -185,8 +203,13 @@ def run_DRYP(filename_input):
 			ro.carea[env_state.gaugeidOF[0]])
 	
 	# Save water table for initial conditions
-	fname_out = env_state.fnameTS_avg + '_wte_ini.asc'	
-	save_map_to_rastergrid(env_state.SZgrid, 'water_table__elevation', fname_out)
+	save_map_to_rastergrid(env_state.SZgrid,
+			'water_table__elevation',
+			env_state.fnameTS_avg + '_wte_ini.asc')
+			
+	save_map_to_rastergrid(env_state.grid,
+			'Soil_Moisture',
+			env_state.fnameTS_avg + '_tht_ini.asc')
 	
 if __name__ == '__main__':
 	run_DRYP(filename_input)

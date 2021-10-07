@@ -211,8 +211,8 @@ class GlobalTimeVarPts:
 			
 			df = pd.DataFrame()			
 			df['Date'] = time			
-			data = np.transpose(self.QFL)
-			
+			data = np.transpose(self.QFL)#+self.OFL)
+			#print(rarea, data)
 			for i, irarea in enumerate(rarea):#range(len(data)):			
 				field = 'QFL_'+str(i)				
 				df[field] = data[i,:]/irarea
@@ -377,24 +377,24 @@ class GlobalGridVar:
 					num=self.grid_shape[0])
 					
 			# temporal accumulation
-			self.PRE_dt = np.zeros(len(self.lat))
-			self.PET_dt = np.zeros(len(self.lat))
-			self.AET_dt = np.zeros(len(self.lat))
-			self.THT_dt = np.zeros(len(self.lat))
-			self.INF_dt = np.zeros(len(self.lat))
-			self.OFL_dt = np.zeros(len(self.lat))
-			self.QFL_dt = np.zeros(len(self.lat))
-			self.TLS_dt = np.zeros(len(self.lat))
-			self.FRH_dt = np.zeros(len(self.lat))
-			self.DRH_dt = np.zeros(len(self.lat))
-			self.GDH_dt = np.zeros(len(self.lat))
-			self.WTE_dt = np.zeros(len(self.lat))
+			self.PRE_dt = np.zeros_like(self.lat)
+			self.PET_dt = np.zeros_like(self.lat)
+			self.AET_dt = np.zeros_like(self.lat)
+			self.THT_dt = np.zeros_like(self.lat)
+			self.INF_dt = np.zeros_like(self.lat)
+			self.OFL_dt = np.zeros_like(self.lat)
+			self.QFL_dt = np.zeros_like(self.lat)
+			self.TLS_dt = np.zeros_like(self.lat)
+			self.FRH_dt = np.zeros_like(self.lat)
+			self.DRH_dt = np.zeros_like(self.lat)
+			self.GDH_dt = np.zeros_like(self.lat)
+			self.WTE_dt = np.zeros_like(self.lat)
 			# Calculate time delta
 			self.delta = str2timedelta(inputfile.ini_date,
 						inputfile.dt_results)
 			# Calculate text time step			
 			self.idate = addtime(inputfile.ini_date, self.delta)
-			
+			self.pdate = inputfile.ini_date
 			# Store variables
 			self.PRE = []
 			self.PET = []
@@ -408,13 +408,16 @@ class GlobalGridVar:
 			self.DRH = []
 			self.GDH = []
 			self.WTE = []
-			#print(self.grid_shape)
 			self.time_grid = []
 			self.nsteps = 0
-		
+			
 	def get_env_state(self, t_date, pre, inf, swb, ro, gw, swb_rip, env_state):
 		if self.save_results == 1:
-			date = pre.date_sim_dt[t_date]
+			if t_date == len(pre.date_sim_dt)-1:
+				self.idate = pre.date_sim_dt[t_date]
+				date = pre.date_sim_dt[t_date]
+			else:
+				date = pre.date_sim_dt[t_date+1]
 			self.PRE_dt += pre.rain
 			self.PET_dt += pre.PET
 			self.AET_dt += swb.aet_dt
@@ -428,7 +431,7 @@ class GlobalGridVar:
 			self.GDH_dt += env_state.SZgrid.at_node['discharge'][:]
 			self.WTE_dt += gw.wte_dt		
 			self.nsteps += 1
-			if self.idate < date:
+			if self.idate == date:
 				self.PRE.append(self.PRE_dt)
 				self.PET.append(self.PET_dt)
 				self.AET.append(self.AET_dt)
@@ -442,20 +445,21 @@ class GlobalGridVar:
 				self.GDH.append(self.GDH_dt)
 				self.WTE.append(self.WTE_dt*1/self.nsteps)
 				# temporal accumulation
-				self.PRE_dt = np.zeros(len(self.lat))
-				self.PET_dt = np.zeros(len(self.lat))
-				self.AET_dt = np.zeros(len(self.lat))
-				self.THT_dt = np.zeros(len(self.lat))
-				self.INF_dt = np.zeros(len(self.lat))
-				self.OFL_dt = np.zeros(len(self.lat))
-				self.QFL_dt = np.zeros(len(self.lat))
-				self.TLS_dt = np.zeros(len(self.lat))
-				self.FRH_dt = np.zeros(len(self.lat))
-				self.DRH_dt = np.zeros(len(self.lat))
-				self.GDH_dt = np.zeros(len(self.lat))
-				self.WTE_dt = np.zeros(len(self.lat))			
+				self.PRE_dt = np.zeros_like(self.lat)
+				self.PET_dt = np.zeros_like(self.lat)
+				self.AET_dt = np.zeros_like(self.lat)
+				self.THT_dt = np.zeros_like(self.lat)
+				self.INF_dt = np.zeros_like(self.lat)
+				self.OFL_dt = np.zeros_like(self.lat)
+				self.QFL_dt = np.zeros_like(self.lat)
+				self.TLS_dt = np.zeros_like(self.lat)
+				self.FRH_dt = np.zeros_like(self.lat)
+				self.DRH_dt = np.zeros_like(self.lat)
+				self.GDH_dt = np.zeros_like(self.lat)
+				self.WTE_dt = np.zeros_like(self.lat)		
 							
-				self.time_grid.append(self.idate)
+				self.time_grid.append(self.pdate)
+				self.pdate = self.idate
 				self.idate = addtime(self.idate, self.delta)
 				self.nsteps = 0
 			
@@ -487,7 +491,7 @@ class GlobalGridVar:
 			time.calendar = 'gregorian'
 			lat[:] = self.yaxis
 			lon[:] = self.xaxis
-			#j = 0
+			
 			for j, idate in enumerate(self.time_grid):		
 				time[j] = date2num(idate, units=time.units, calendar=time.calendar)
 				npre[j,:,:] = (self.PRE[j][:]).reshape(self.grid_shape)
@@ -505,84 +509,6 @@ class GlobalGridVar:
 				
 			dataset.close()
 		
-	def	save_monthly_netCDF_var(self, date, fname):		
-		dataset = Dataset(fname, 'w', format='NETCDF4_CLASSIC')
-		dataset.createDimension('time', None)		
-		dataset.createDimension('lon', self.grid_shape[1])		
-		dataset.createDimension('lat', self.grid_shape[0])		
-		# Create coordinate variables for 4-dimensions		
-		lat = dataset.createVariable('lat', np.float64, ('lat',))		
-		lon = dataset.createVariable('lon', np.float64, ('lon',))		
-		time = dataset.createVariable('time', np.float64, ('time',))		
-		# Create the actual 4-d variable			
-		npre = dataset.createVariable('precipitation', np.float32, ('time', 'lat', 'lon'))
-		npet = dataset.createVariable('pevaporation', np.float32, ('time', 'lat', 'lon'))
-		naet = dataset.createVariable('aevaporation', np.float32, ('time', 'lat', 'lon'))
-		ntht = dataset.createVariable('soil_moisture', np.float32, ('time', 'lat', 'lon'))
-		ninf = dataset.createVariable('infiltration', np.float32, ('time', 'lat', 'lon'))
-		ndis = dataset.createVariable('runoff', np.float32, ('time', 'lat', 'lon'))
-		nrch = dataset.createVariable('recharge', np.float32, ('time', 'lat', 'lon'))
-		time.units = 'hours since 1980-01-01 00:00:00'
-		time.calendar = 'gregorian'
-		lat[:] = self.yaxis
-		lon[:] = self.xaxis
-		j = 0
-		k = 0
-		M = date[0].month
-		time[0] = date2num(date[0], units=time.units, calendar=time.calendar)
-				
-		aux_pre = np.zeros(self.grid_shape)
-		aux_aet = np.zeros(self.grid_shape)
-		aux_pet = np.zeros(self.grid_shape)
-		aux_tht = np.zeros(self.grid_shape)
-		aux_inf = np.zeros(self.grid_shape)
-		aux_dis = np.zeros(self.grid_shape)
-		aux_rch = np.zeros(self.grid_shape)
-		
-		for idate in date:
-			aux_pre += np.array(self.PRE[j])
-			aux_aet += np.array(self.AET[j])
-			aux_pet += np.array(self.PET[j])
-			aux_tht += np.array(self.THT[j])
-			aux_inf += np.array(self.INF[j])
-			aux_dis += np.array(self.OFL[j])
-			aux_rch += np.array(self.PCL[j])
-							
-			j += 1
-			
-			if j == len(date):			
-				npre[k,:,:] = np.array(aux_pre)#.reshape(self.grid_shape[0],self.grid_shape[1])
-				naet[k,:,:] = np.array(aux_aet)#.reshape(self.grid_shape[0],self.grid_shape[1])
-				npet[k,:,:] = np.array(aux_pet)#.reshape(self.grid_shape[0],self.grid_shape[1])
-				ninf[k,:,:] = np.array(aux_inf)#.reshape(self.grid_shape[0],self.grid_shape[1])
-				ndis[k,:,:] = np.array(aux_dis)#.reshape(self.grid_shape[0],self.grid_shape[1])
-				nrch[k,:,:] = np.array(aux_rch)#.reshape(self.grid_shape[0],self.grid_shape[1])
-				ntht[k,:,:] = np.array(aux_tht)/(24*monthrange(idate.year, idate.month)[1])
-			
-			if j < len(date):			
-				if date[j].month > M:					
-					npre[k,:,:] = np.array(aux_pre)#.reshape(self.grid_shape[0],self.grid_shape[1])
-					naet[k,:,:] = np.array(aux_aet)#.reshape(self.grid_shape[0],self.grid_shape[1])
-					npet[k,:,:] = np.array(aux_pet)#.reshape(self.grid_shape[0],self.grid_shape[1])
-					ntht[k,:,:] = np.array(aux_tht)#.reshape(self.grid_shape[0],self.grid_shape[1])/(24*monthrange(idate.year, idate.month)[1])
-					ninf[k,:,:] = np.array(aux_inf)#.reshape(self.grid_shape[0],self.grid_shape[1])
-					ndis[k,:,:] = np.array(aux_dis)#.reshape(self.grid_shape[0],self.grid_shape[1])
-					nrch[k,:,:] = np.array(aux_rch)#.reshape(self.grid_shape[0],self.grid_shape[1])					
-					ntht[k,:,:] = np.array(aux_tht)/(24*monthrange(idate.year, idate.month)[1])
-					
-					aux_pre = np.zeros(self.grid_shape)
-					aux_aet = np.zeros(self.grid_shape)
-					aux_pet = np.zeros(self.grid_shape)
-					aux_tht = np.zeros(self.grid_shape)
-					aux_inf = np.zeros(self.grid_shape)
-					aux_dis = np.zeros(self.grid_shape)
-					aux_rch = np.zeros(self.grid_shape)					
-					
-					k += 1
-					time[k] = date2num(date[j],units = time.units, calendar = time.calendar)
-					M = date[j].month
-		dataset.close()
-	
 	def env_state_grid(self):
 		self.inf_dt = []
 
@@ -605,8 +531,8 @@ class GlobalGridVar:
 		self.Dh = array_aux
 		self.AETh = array_aux
 		self.INF_dt = array_aux
-		self.DIS_grid_h = np.zeros(len(z))
-		self.DIS_dt = np.zeros(len(z))
+		self.DIS_grid_h = np.zeros_like(z)
+		self.DIS_dt = np.zeros_like(z)
 		self.SMD_h = array_aux
 		self.THT_h = array_aux
 
@@ -624,7 +550,7 @@ def check_mass_balance(fname, outavg, outOF, outavg_AER, data, dt, area):
 	per_TLS = 100*np.sum(outavg.TLS)/np.sum(outavg.PRE)
 	per_PCL = 100*np.sum(outavg.PCL)/np.sum(outavg.PRE)
 	
-	if  outavg_AER:
+	if outavg_AER:
 		per_AER = 100*np.sum(outavg_AER.AET)/np.sum(outavg.PRE)
 		per_FRC = 100*np.sum(outavg_AER.PCL)/np.sum(outavg.PRE)
 	per_OFL = 100*(1000*np.sum(np.transpose(outOF.OFL)[0])/area)/np.sum(outavg.PRE)
@@ -665,8 +591,7 @@ def check_mass_balance(fname, outavg, outOF, outavg_AER, data, dt, area):
 
 def check_mass_balance_error(df):
 	"""Dataframe
-	"""
-	
+	"""	
 	IN_UZ = df['pre'] - df['exs'] + df['tls']	
 	OUT_UZ = df['rch'] + df['aet']
 	
@@ -680,7 +605,7 @@ def check_mass_balance_error(df):
 	
 	#print('Mass balance Error: ', np.sum(ERROR_UZ+ERROR_SZ)/TOTAL)
 	#print('Mass balance unsaturated zone:', np.sum(ERROR_UZ)/np.sum(IN_UZ+OUT_UZ))
-	print('Mass balance saturated zone:', np.sum(ERROR_SZ)/np.sum(IN_SZ+OUT_SZ))
+	#print('Mass balance saturated zone:', np.sum(ERROR_SZ)/np.sum(IN_SZ+OUT_SZ))
 
 
 def str2timedelta(date, delta):
@@ -730,53 +655,44 @@ def addtime(date,dt):
 	#	date = date + timedelta(days=date[2], hours=dt[3])
 	return date
 
-def save_map_to_rastergrid(grid,field,fname):
+def save_map_to_rastergrid(grid, field, fname):
 	os.remove(fname) if os.path.exists(fname) else None
 	files = write_esri_ascii(fname, grid,field)
 
-def save_map_to_figure(time_var,grid_var,nodes):
-	titlePre = 'Rainfall [mm] - '+date_sim_h[j_t-1].strftime("%m/%d/%Y, %H:%M")
-	ax = imshow_grid(rg, rainfall, cmap = 'YlGnBu',show_elements = True,shrink = 0.5, color_for_closed = None,plot_name = titlePre,limits = (0, rainfall.max()))
-	outputfilenameRainTimeSeries = outputcirnetcdf+'/WG_RR_'+date_sim_h[j_t-1].strftime("%d%m%Y_%H%M")+'.png'
-	plt.savefig(outputfilenameRainTimeSeries,dpi = 100, bbox_inches = 'tight')
-	plt.close() 
 
-	titlePre = 'Soil Moisture [%] - '+date_sim_h[j_t-1].strftime("%m/%d/%Y, %H:%M")
-	rg.at_node['Soil_Moisture'][act_nodes] = theta_h
-	ax = imshow_grid(rg, 'Soil_Moisture', cmap = 'YlGnBu',show_elements = True,shrink = 0.5, color_for_closed = None,plot_name = titlePre,limits = (0, theta.max()))
-	outputfilenameThetaTimeSeries = outputcirnetcdf+'/WG_SM_'+date_sim_h[j_t-1].strftime("%d%m%Y_%H%M")+'.png'
-	plt.savefig(outputfilenameThetaTimeSeries,dpi = 100, bbox_inches = 'tight')
-	plt.close() 
+# Modify model input files ans model setting files	
+def write_sim_file(filename_input, parameter):
+	""" modify the parematers of the model input file and
+		model setting file.
+		WARNING: it will reeplace the original file, so
+		make a copy of the original files
+	parameters:
+		filename_input:	model inputfile, including path
+		parameter:		1D array of model paramters
+	"""
+	if not os.path.exists(filename_input):
+		raise ValueError("File not availble")
 	
-	if daily_model == 0: # if the daily model is disable, discharge and transmission losses are saved
-		titlePre = 'Discharge [m3/h] - '+date_sim_h[j_t-1].strftime("%m/%d/%Y, %H:%M")
-		ax = imshow_grid(rg, 'surface_water__discharge', cmap = 'YlGnBu',show_elements = True,shrink = 0.5, color_for_closed = None,plot_name = titlePre,limits = (0, rg['node']['surface_water__discharge'].max()))
-		outputfilenamegridTimeSeries = outputcirnetcdf+'/WG_OF_'+date_sim_h[j_t-1].strftime("%d%m%Y_%H%M")+'.png'
-		plt.savefig(outputfilenamegridTimeSeries,dpi = 100, bbox_inches = 'tight')
-		plt.close() 
-
-		titlePre = 'Transmission Losses[m3/h] - '+date_sim_h[j_t-1].strftime("%m/%d/%Y, %H:%M")
-		ax = imshow_grid(rg, TL, cmap = 'YlGnBu',show_elements = True,shrink = 0.5, color_for_closed = None,plot_name = titlePre,limits = (0, TL.max()))
-		outputfilenameThetaTimeSeries = outputcirnetcdf+'/WG_TL_'+date_sim_h[j_t-1].strftime("%d%m%Y_%H%M")+'.png'
-		plt.savefig(outputfilenameThetaTimeSeries,dpi = 100, bbox_inches = 'tight')
-		plt.close() 
-		#plt.show()
-		
-		outputfilenamenetcdf = outputcirnetcdf+'DrylandModel_'+date_sim_h[j_t-1].strftime("%d%m%Y_%H%M")+'.nc'
-		#write_netcdf(outputfilenamenetcdf, rg, format = 'NETCDF3_64BIT',names = ['Precipitation','Soil_Moisture','Transmission_losses','surface_water__discharge'])
-	else: # if the daily model is active, discharge and transmission losses are not saved
-		outputfilenamenetcdf = outputcirnetcdf+'DrylandModel_'+date_sim_h[j_t-1].strftime("%d%m%Y_%H%M")+'.nc'
-		#write_netcdf(outputfilenamenetcdf, rg, format = 'NETCDF3_64BIT',names = ['Precipitation','Soil_Moisture'])
+	f = pd.read_csv(filename_input)
+	f.drylandmodel[1] = f.drylandmodel[1] + str(int(parameter[0]))
 	
-	#outputfilenamegridTimeSeries = outputcirnetcdf+'/WG_Res_'+date_sim_h[j_t-1].strftime("%d%m%Y_%H%M")+'.png'
-	#plt.savefig(outputfilenamegridTimeSeries,dpi = 100, bbox_inches = 'tight')
-	#plt.close()
-	step_num += 1
-	titlePre = 'Water table [m] - '+ini_date.strftime("%m/%d/%Y, %H:%M")
-	ax = imshow_grid(rg, h, cmap = 'YlGnBu',show_elements = True,shrink = 0.5, color_for_closed = None,plot_name = titlePre,limits = (0, h.max()))
-	outputfilenamewtTimeSeries = 'results_hourly/pic/WG_water_table_t_'+str(step_num)+'.png'
-	plt.savefig(outputfilenamewtTimeSeries,dpi = 100, bbox_inches = 'tight')
-	#imshow_grid(rg, 'Precipitation', cmap = 'hsv',show_elements = True)
-	outputfilenamenetcdf_GW = outputcirnetcdf+'DrylandModel_GW_'+str(i)+'.nc'
-	write_netcdf(outputfilenamenetcdf_GW, rg, format = 'NETCDF3_64BIT',names = 'Pressure_head')
-	plt.show()	
+	filename_simpar = f.drylandmodel[87]
+	fsimpar = pd.read_csv(filename_simpar)	
+	
+	# Simulation parameters
+	fsimpar['DWAPM_SET'][46] = ('%.5f' % parameter[1]) # kdt
+	fsimpar['DWAPM_SET'][48] = ('%.5f' % parameter[2]) # kDroot
+	fsimpar['DWAPM_SET'][50] = ('%.2f' % parameter[3]) # kAWC
+	fsimpar['DWAPM_SET'][52] = ('%.5f' % parameter[4]) # kKsat
+	fsimpar['DWAPM_SET'][54] = ('%.5f' % parameter[5]) # kSigma
+	fsimpar['DWAPM_SET'][56] = ('%.5f' % parameter[6]) # kKch
+	fsimpar['DWAPM_SET'][58] = ('%.5f' % parameter[7]) # T
+	fsimpar['DWAPM_SET'][60] = ('%.5f' % parameter[8]) # kW
+	fsimpar['DWAPM_SET'][62] = ('%.5f' % parameter[9]) # kKaq
+	fsimpar['DWAPM_SET'][64] = ('%.5f' % parameter[10])# kSy
+	
+	os.remove(filename_input) if os.path.exists(filename_input) else None
+	os.remove(filename_simpar) if os.path.exists(filename_simpar) else None
+	
+	f.to_csv(filename_input, index=False)
+	fsimpar.to_csv(filename_simpar, index=False)

@@ -1,0 +1,10 @@
+DrylandModel
+Total Precipitation.......768.000 mm (100.00%)
+Total Infiltration........637.617 mm (83.02%)
+Total Excess..............130.383 mm (16.98%)
+Total Transmission Losses.98.143 mm (12.78%)
+Total Evapot. Hills Slop..424.644 mm (55.29%)
+Total Riparean AET .......4.413 mm (0.57%)
+Total Focused Recharge....99.506 mm (12.96%)
+Total Diffuse Recharge....147.287 mm (19.18%)
+Total Discharge...........74.351 mm (9.68%)
