@@ -1,171 +1,245 @@
 Timer unit: 1e-07 s
 
-Total time: 136.147 s
+Total time: 38.3834 s
 File: C:\Users\km19051\OneDrive - Cardiff University\PhD\Github\DRYP\run_DRYP.py
-Function: run_DRYP at line 28
+Function: run_DRYP at line 31
 
 Line #      Hits         Time  Per Hit   % Time  Line Contents
 ==============================================================
-    28                                           @profile
-    29                                           def run_DRYP(filename_input):
-    30                                           
-    31         1     265611.0 265611.0      0.0  	data_in = inputfile(filename_input)
-    32         1         19.0     19.0      0.0  	daily = 1
-    33                                           	# setting model fluxes and state variables
-    34         1     742922.0 742922.0      0.1  	env_state = model_environment_status(data_in)
-    35         1       1950.0   1950.0      0.0  	env_state.set_output_dir(data_in)
-    36         1     280828.0 280828.0      0.0  	env_state.points_output(data_in)
-    37                                           	
-    38                                           	# setting model components
-    39         1  330753751.0 330753751.0     24.3  	rf = rainfall(data_in, env_state)
-    40         1        282.0    282.0      0.0  	abc = ABMconnector(data_in, env_state)
-    41         1        279.0    279.0      0.0  	inf = infiltration(env_state, data_in)
-    42         1        158.0    158.0      0.0  	swb = swbm(env_state, data_in)
-    43         1        101.0    101.0      0.0  	swb_rip = swbm(env_state, data_in)
-    44         1      10938.0  10938.0      0.0  	ro = runoff_routing(env_state, data_in)
-    45         1       6000.0   6000.0      0.0  	gw = gwflow_EFD(env_state, data_in)
-    46                                           	
-    47                                           	# Output variables and location
-    48         1         93.0     93.0      0.0  	outavg = GlobalTimeVarAvg(env_state.area_catch_factor)
-    49         1         95.0     95.0      0.0  	outavg_rip = GlobalTimeVarAvg(env_state.area_river_factor)
-    50         1        102.0    102.0      0.0  	outpts = GlobalTimeVarPts()
-    51         1         54.0     54.0      0.0  	state_var = GlobalGridVar(env_state, data_in)
-    52                                           	
-    53         1         13.0     13.0      0.0  	t = 0	
-    54         1         13.0     13.0      0.0  	t_eto = 0	
-    55         1         13.0     13.0      0.0  	t_pre = 0
+    31                                           @profile
+    32                                           def run_DRYP(filename_input):
+    33                                           	
+    34                                           	# read model paramters and model setting file
+    35         1     116508.0 116508.0      0.0  	data_in = inputfile(filename_input)
+    36                                           	
+    37                                           	# setting model fluxes and state variables
+    38         1     183039.0 183039.0      0.0  	env_state = model_environment_status(data_in)
+    39         1       7840.0   7840.0      0.0  	env_state.set_output_dir(data_in)
+    40         1     120579.0 120579.0      0.0  	env_state.points_output(data_in)
+    41                                           	
+    42                                           	# setting model components
+    43         1  378266813.0 378266813.0     98.5  	rf = rainfall(data_in, env_state)
+    44         1       1715.0   1715.0      0.0  	abc = ABMconnector(data_in, env_state)
+    45         1      64882.0  64882.0      0.0  	inf = infiltration(env_state, data_in)
+    46         1        234.0    234.0      0.0  	swb = swbm(env_state, data_in)
+    47         1        114.0    114.0      0.0  	swb_rip = swbm(env_state, data_in)
+    48         1      11763.0  11763.0      0.0  	ro = runoff_routing(env_state, data_in)
+    49         1      25067.0  25067.0      0.0  	gw = gwflow_EFD(env_state, data_in)
+    50                                           	
+    51                                           	# Output variables and location
+    52         1        118.0    118.0      0.0  	outavg = GlobalTimeVarAvg(env_state.area_catch_factor)
+    53         1         49.0     49.0      0.0  	outavg_rip = GlobalTimeVarAvg(env_state.area_river_factor)
+    54         1         75.0     75.0      0.0  	outpts = GlobalTimeVarPts()
+    55         1         50.0     50.0      0.0  	state_var = GlobalGridVar(env_state, data_in)
     56                                           	
-    57         1         12.0     12.0      0.0  	gw_level = []
-    58         1         15.0     15.0      0.0  	pre_mb = []
-    59         1         19.0     19.0      0.0  	exs_mb = []
-    60         1         14.0     14.0      0.0  	tls_mb = []
-    61         1         13.0     13.0      0.0  	gws_mb = []
-    62         1         13.0     13.0      0.0  	uzs_mb = []
-    63         1         12.0     12.0      0.0  	dis_mb = []
-    64         1         13.0     13.0      0.0  	rch_mb = []
-    65         1         13.0     13.0      0.0  	aet_mb = []
-    66         1         13.0     13.0      0.0  	egw_mb = []
-    67                                           
-    68         1         32.0     32.0      0.0  	rch_agg = np.zeros(len(swb.L_0))
-    69         1         23.0     23.0      0.0  	etg_agg = np.zeros(len(swb.L_0))
-    70         1         20.0     20.0      0.0  	dt_GW = np.int(data_in.dt)
-    71                                           	
-    72      1467      25323.0     17.3      0.0  	while t < rf.t_end:
-    73                                           	
-    74     36650     477321.0     13.0      0.0  		for UZ_ti in range(data_in.dt_hourly):
-    75                                           			
-    76     70368    1211563.0     17.2      0.1  			for dt_pre_sub in range(data_in.dt_sub_hourly):
-    77                                           				
-    78     35184     457478.0     13.0      0.0  				swb.run_soil_aquifer_one_step(env_state,
-    79     35184    1047803.0     29.8      0.1  					env_state.grid.at_node['topographic__elevation'],
-    80     35184     779664.0     22.2      0.1  					env_state.SZgrid.at_node['water_table__elevation'],
-    81     35184     422940.0     12.0      0.0  					env_state.Duz,
-    82     35184   12277356.0    348.9      0.9  					swb.tht_dt)
-    83                                           															
-    84     35184     547255.0     15.6      0.0  				env_state.Duz = swb.Duz
+    57         1         10.0     10.0      0.0  	t = 0	
+    58         1          9.0      9.0      0.0  	t_eto = 0	
+    59         1          9.0      9.0      0.0  	t_pre = 0
+    60                                           	
+    61                                           	#gw_level = []
+    62         1         16.0     16.0      0.0  	pre_mb = []
+    63         1         10.0     10.0      0.0  	exs_mb = []
+    64         1          9.0      9.0      0.0  	tls_mb = []
+    65         1         10.0     10.0      0.0  	gws_mb = []
+    66         1         10.0     10.0      0.0  	uzs_mb = []
+    67         1         10.0     10.0      0.0  	dis_mb = []
+    68         1         10.0     10.0      0.0  	rch_mb = []
+    69         1          9.0      9.0      0.0  	aet_mb = []
+    70         1         10.0     10.0      0.0  	egw_mb = []
+    71         1          9.0      9.0      0.0  	chs_mb = []
+    72                                           
+    73         1         73.0     73.0      0.0  	rch_agg = np.zeros(len(swb.L_0))
+    74         1         19.0     19.0      0.0  	etg_agg = np.zeros(len(swb.L_0))
+    75         1        152.0    152.0      0.0  	dt_GW = np.int(data_in.dt)
+    76                                           	
+    77         3         58.0     19.3      0.0  	while t < rf.t_end:
+    78                                           	
+    79        50        575.0     11.5      0.0  		for UZ_ti in range(data_in.dt_hourly):
+    80                                           			
+    81        96       1442.0     15.0      0.0  			for dt_pre_sub in range(data_in.dt_sub_hourly):
+    82                                           				
+    83                                           				# get rainfall				
+    84        48      55483.0   1155.9      0.0  				rf.run_rainfall_one_step(t_pre, t_eto, env_state, data_in)
     85                                           				
-    86     35184   51375041.0   1460.2      3.8  				rf.run_rainfall_one_step(t_pre, t_eto, env_state, data_in)
-    87                                           				
-    88     35184     587493.0     16.7      0.0  				abc.run_ABM_one_step(t_pre, env_state,
-    89     35184     535747.0     15.2      0.0  					rf.rain, env_state.Duz, swb.tht_dt, env_state.fc,
-    90     35184    1056131.0     30.0      0.1  					env_state.grid.at_node['wilting_point'],
-    91     35184    2512142.0     71.4      0.2  					env_state.SZgrid.at_node['water_table__elevation'],
-    92                                           					)
-    93                                           					
-    94     35184    1127610.0     32.0      0.1  				rf.rain += abc.auz
+    86                                           				# estimate abstractions
+    87        48        767.0     16.0      0.0  				abc.run_ABM_one_step(t_pre, env_state,
+    88        48        784.0     16.3      0.0  					rf.rain, env_state.Duz, swb.tht_dt, env_state.fc,
+    89        48       1353.0     28.2      0.0  					env_state.grid.at_node['wilting_point'],
+    90        48       2964.0     61.8      0.0  					env_state.SZgrid.at_node['water_table__elevation'],
+    91                                           					)
+    92                                           				
+    93                                           				# add abstraction as rain
+    94        48       1418.0     29.5      0.0  				rf.rain += abc.auz
     95                                           				
-    96     35184   29939663.0    850.9      2.2  				inf.run_infiltration_one_step(rf, env_state, data_in)
-    97                                           				
-    98     35184    5378243.0    152.9      0.4  				aux_usz = np.sum((swb.L_0*env_state.hill_factor)[env_state.act_nodes])
-    99     35184    3793234.0    107.8      0.3  				aux_usp = np.sum((swb_rip.L_0*env_state.riv_factor)[env_state.act_nodes])
-   100                                           				
-   101     35184     576195.0     16.4      0.0  				swb.run_swbm_one_step(inf.inf_dt, rf.PET, env_state.Kc,
-   102     35184   44004758.0   1250.7      3.2  					env_state.grid.at_node['Ksat_soil'], env_state, data_in)
-   103                                           				
-   104     35184    2163571.0     61.5      0.2  				env_state.grid.at_node['riv_sat_deficit'][:] *= (swb_rip.tht_dt)
-   105                                           				
-   106     35184  289833763.0   8237.7     21.3  				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
-   107                                           				
-   108     35184    1054038.0     30.0      0.1  				tls_aux = ro.tls_flow_dt*env_state.rip_factor
-   109                                           				
-   110     35184     775786.0     22.0      0.1  				rip_inf_dt = inf.inf_dt + tls_aux
-   111                                           								
-   112     35184     558441.0     15.9      0.0  				swb_rip.run_swbm_one_step(rip_inf_dt, rf.PET, env_state.Kc,
-   113     35184     897220.0     25.5      0.1  						env_state.grid.at_node['Ksat_ch'], env_state,
-   114     35184   44012242.0   1250.9      3.2  						data_in, env_state.river_ids_nodes)
-   115                                           						
-   116     35184    1238879.0     35.2      0.1  				swb_rip.pcl_dt *= env_state.riv_factor
-   117     35184     874056.0     24.8      0.1  				swb_rip.aet_dt *= env_state.riv_factor
-   118     35184     874546.0     24.9      0.1  				swb.pcl_dt *= env_state.hill_factor
-   119     35184     840937.0     23.9      0.1  				swb.aet_dt *= env_state.hill_factor
-   120     35184    1004523.0     28.6      0.1  				rech = swb.pcl_dt + swb_rip.pcl_dt - abc.asz# [mm/dt]
-   121     35184    4971905.0    141.3      0.4  				etg_dt = gw.SZ_potential_ET(env_state, swb.gwe_dt)
-   122     35184    1383248.0     39.3      0.1  				etg_agg += np.array(etg_dt) # [mm/h]											
-   123     35184    1041877.0     29.6      0.1  				rch_agg += np.array(rech) # [mm/dt]
-   124                                           				
-   125                                           				# Water balance storage and flow
-   126     35184    5394121.0    153.3      0.4  				pre_mb.append(np.sum(rf.rain[env_state.act_nodes]))
-   127     35184    3567684.0    101.4      0.3  				exs_mb.append(np.sum(inf.exs_dt[env_state.act_nodes]))
-   128     35184    3186569.0     90.6      0.2  				tls_mb.append(np.sum(tls_aux[env_state.act_nodes]))
-   129     35184    3620481.0    102.9      0.3  				aux_usz1 = np.sum((swb.L_0*env_state.hill_factor)[env_state.act_nodes])
-   130     35184    3458824.0     98.3      0.3  				aux_usp1 = np.sum((swb_rip.L_0*env_state.riv_factor)[env_state.act_nodes])
-   131                                           				
-   132     35184     753911.0     21.4      0.1  				uzs_mb.append(aux_usp1+aux_usz1-aux_usp-aux_usz)
-   133     35184    3523227.0    100.1      0.3  				aet_mb.append(np.sum((swb_rip.aet_dt+swb.aet_dt)[env_state.act_nodes]))
-   134     35184    3114062.0     88.5      0.2  				egw_mb.append(np.sum(etg_dt[env_state.act_nodes]))
-   135     35184    3084178.0     87.7      0.2  				rch_mb.append(np.sum(rech[env_state.act_nodes]))				
-   136                                           				#aux_ssz = storage_uz_sz(env_state, 0, 0)			
-   137                                           				
-   138     35184     707056.0     20.1      0.1  				if dt_GW == data_in.dtSZ:
-   139                                           					# Change units to m/h
-   140     35184    1458667.0     41.5      0.1  					env_state.SZgrid.at_node['discharge'][:] = 0.0
-   141     35184    1910844.0     54.3      0.1  					env_state.SZgrid.at_node['recharge'][:] = (rch_agg - etg_agg)*0.001 #[mm/dt]
-   142     35184     643407.0     18.3      0.0  					gw.run_one_step_gw(env_state, data_in.dtSZ/60, swb.tht_dt,
-   143     35184  294129011.0   8359.7     21.6  						env_state.Droot*0.001)
-   144     35184    1460414.0     41.5      0.1  					rch_agg = np.zeros(len(swb.L_0))
-   145     35184     801399.0     22.8      0.1  					etg_agg = np.zeros(len(swb.L_0))
-   146     35184     448837.0     12.8      0.0  					dt_GW = 0
-   147                                           					
-   148     35184     827614.0     23.5      0.1  				dt_GW += np.int(data_in.dt)				
-   149                                           				
-   150     35184   19610787.0    557.4      1.4  				gws_mb.append(storage_uz_sz(env_state, np.array(swb.tht_dt), gw.dh))#-aux_ssz)
-   151     35184    4291253.0    122.0      0.3  				dis_mb.append(np.sum(env_state.SZgrid.at_node['discharge'][env_state.act_nodes])-gw.flux_out)
-   152                                           				
-   153                                           				#Extract average state and fluxes				
-   154     35184    7175941.0    204.0      0.5  				outavg.extract_avg_var_pre(env_state.basin_nodes,rf)				
-   155     35184    6517159.0    185.2      0.5  				outavg.extract_avg_var_UZ_inf(env_state.basin_nodes,inf)
-   156     35184    8868500.0    252.1      0.7  				outavg.extract_avg_var_UZ_swb(env_state.basin_nodes,swb)
-   157     35184    8741895.0    248.5      0.6  				outavg_rip.extract_avg_var_UZ_swb(env_state.basin_nodes,swb_rip)
-   158     35184    7857228.0    223.3      0.6  				outavg.extract_avg_var_OF(env_state.basin_nodes,ro)
-   159     35184    8024422.0    228.1      0.6  				outavg.extract_avg_var_SZ(env_state.basin_nodes,gw)
-   160                                           				
-   161                                           				#Extract point state and fluxes
-   162     35184    4339941.0    123.3      0.3  				outpts.extract_point_var_UZ_inf(env_state.gaugeidUZ,inf)
-   163     35184    4960996.0    141.0      0.4  				outpts.extract_point_var_UZ_swb(env_state.gaugeidUZ,swb)
-   164     35184    3790272.0    107.7      0.3  				outpts.extract_point_var_OF(env_state.gaugeidOF,ro)
-   165     35184    1766496.0     50.2      0.1  				outpts.extract_point_var_SZ(env_state.gaugeidGW,gw)
-   166     35184     518099.0     14.7      0.0  				state_var.get_env_state(t_pre, rf, inf, swb,
-   167     35184     958038.0     27.2      0.1  									ro, gw, swb_rip, env_state)
+    96                                           				# estimate infiltration
+    97        48      53651.0   1117.7      0.0  				inf.run_infiltration_one_step(rf, env_state, data_in)
+    98                                           				
+    99                                           				# soil storage at time t0
+   100        48        738.0     15.4      0.0  				aux_usz = np.sum((swb.L_0
+   101        48       7328.0    152.7      0.0  						* env_state.hill_factor)[env_state.act_nodes])
+   102                                           				
+   103                                           				# riparian storage at time t0				
+   104        48        645.0     13.4      0.0  				aux_usp = np.sum((swb_rip.L_0
+   105        48       5456.0    113.7      0.0  						* env_state.riv_factor)[env_state.act_nodes])
+   106                                           				
+   107                                           				# estimate soil water balance
+   108        48        702.0     14.6      0.0  				swb.run_swbm_one_step(inf.inf_dt, rf.PET, env_state.Kc,
+   109        48      63432.0   1321.5      0.0  					env_state.grid.at_node['Ksat_soil'], env_state, data_in)
+   110                                           				
+   111                                           				# estimate available storage ar riparian zone
+   112        48       1688.0     35.2      0.0  				env_state.grid.at_node['riv_sat_deficit'][:] *= np.array(
+   113        48       1966.0     41.0      0.0  					swb_rip.tht_dt)
+   114                                           				
+   115                                           				# estimate runoff
+   116        48     748209.0  15587.7      0.2  				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
+   117                                           				
+   118                                           				# change transmission losses to riparian area
+   119        48       1334.0     27.8      0.0  				tls_aux = ro.tls_flow_dt*env_state.rip_factor
+   120                                           				
+   121                                           				# estimate inputs to riparian zone
+   122        48        926.0     19.3      0.0  				rip_inf_dt = inf.inf_dt + tls_aux
+   123                                           				
+   124                                           				# estimate riparian water balance
+   125        48        744.0     15.5      0.0  				swb_rip.run_swbm_one_step(rip_inf_dt, rf.PET, env_state.Kc,
+   126        48        983.0     20.5      0.0  						env_state.grid.at_node['Ksat_ch'], env_state,
+   127        48      65063.0   1355.5      0.0  						data_in, env_state.river_ids_nodes)
+   128                                           				
+   129                                           				# change riparian fluxes to cell area
+   130        48       1576.0     32.8      0.0  				swb_rip.pcl_dt *= env_state.riv_factor
+   131        48       1047.0     21.8      0.0  				swb_rip.aet_dt *= env_state.riv_factor
+   132                                           				
+   133                                           				# correct hill slop fluxes to grid cells
+   134        48       1024.0     21.3      0.0  				swb.pcl_dt *= env_state.hill_factor
+   135        48        989.0     20.6      0.0  				swb.aet_dt *= env_state.hill_factor
+   136                                           				
+   137                                           				# estimate total groundwater recharge
+   138        48       1204.0     25.1      0.0  				rech = swb.pcl_dt + swb_rip.pcl_dt - abc.asz# [mm/dt]
+   139                                           				
+   140                                           				# estimate capillary rise
+   141        48       6175.0    128.6      0.0  				etg_dt = gw.SZ_potential_ET(env_state, swb.gwe_dt)
+   142                                           				
+   143                                           				# temporal aggregation of fluxes for groundwater
+   144        48       1700.0     35.4      0.0  				etg_agg += np.array(etg_dt) # [mm/h]
+   145        48       1251.0     26.1      0.0  				rch_agg += np.array(rech) # [mm/dt]
+   146                                           				
+   147                                           				# save total catchment fluxes for water balance
+   148        48       7752.0    161.5      0.0  				pre_mb.append(np.sum(rf.rain[env_state.act_nodes]))
+   149        48       5289.0    110.2      0.0  				exs_mb.append(np.sum(inf.exs_dt[env_state.act_nodes]))
+   150        48       4706.0     98.0      0.0  				tls_mb.append(np.sum(ro.tls_dt[env_state.act_nodes]))
+   151                                           				
+   152                                           				# save soil and riparian evapotranpiration for water balance
+   153        48        628.0     13.1      0.0  				aet_mb.append(np.sum((swb_rip.aet_dt
+   154        48       5054.0    105.3      0.0  					+swb.aet_dt)[env_state.act_nodes]))
+   155        48       4535.0     94.5      0.0  				egw_mb.append(np.sum(etg_dt[env_state.act_nodes]))
+   156        48       4430.0     92.3      0.0  				rch_mb.append(np.sum(rech[env_state.act_nodes]))
+   157                                           				
+   158                                           				# soil storage at time t1
+   159        48        618.0     12.9      0.0  				aux_usz1 = np.sum((swb.L_0
+   160        48       4905.0    102.2      0.0  					*env_state.hill_factor)[env_state.act_nodes])
+   161                                           				
+   162                                           				# riparian storage at time t1
+   163        48        615.0     12.8      0.0  				aux_usp1 = np.sum((swb_rip.L_0
+   164        48       4777.0     99.5      0.0  					*env_state.riv_factor)[env_state.act_nodes])
+   165                                           				
+   166                                           				# channel storage at delta time
+   167        48       4572.0     95.2      0.0  				chs_mb.append(np.sum(ro.qfl_dt[env_state.act_nodes]))
    168                                           				
-   169     35184     976271.0     27.7      0.1  				env_state.L_0 = np.array(swb.L_0)				
-   170     35184     506413.0     14.4      0.0  				t_pre += 1
-   171     35184     488470.0     13.9      0.0  			t_eto += 1		
-   172      1466      19869.0     13.6      0.0  		t += 1
-   173                                           	
-   174         1         14.0     14.0      0.0  	mb = [pre_mb, exs_mb, tls_mb, rch_mb, gws_mb,
-   175         1         16.0     16.0      0.0  		uzs_mb, dis_mb, aet_mb, egw_mb]	
-   176                                           	
-   177         1    6289257.0 6289257.0      0.5  	outavg.save_avg_var(env_state.fnameTS_avg+'.csv', rf.date_sim_dt)
-   178         1    2708476.0 2708476.0      0.2  	outavg_rip.save_avg_var(env_state.fnameTS_avg+'rip.csv', rf.date_sim_dt)
-   179         1         63.0     63.0      0.0  	outpts.save_point_var(env_state.fnameTS_OF, rf.date_sim_dt,
-   180         1        232.0    232.0      0.0  			ro.carea[env_state.gaugeidOF],
-   181         1   78710118.0 78710118.0      5.8  			env_state.rarea[env_state.gaugeidOF])	
-   182         1        393.0    393.0      0.0  	state_var.save_netCDF_var(env_state.fnameTS_avg+'.nc')
-   183         1         29.0     29.0      0.0  	check_mass_balance(env_state.fnameTS_avg, outavg, outpts,
-   184         1         25.0     25.0      0.0  			outavg_rip, mb, rf.date_sim_dt,
-   185         1   10487690.0 10487690.0      0.8  			ro.carea[env_state.gaugeidOF[0]])
-   186                                           	
-   187                                           	# Save water table for initial conditions
-   188         1         43.0     43.0      0.0  	fname_out = env_state.fnameTS_avg + '_wte_ini.asc'	
-   189         1      49360.0  49360.0      0.0  	save_map_to_rastergrid(env_state.SZgrid, 'water_table__elevation', fname_out)
+   169                                           				# change in soil and riparian storage at delta time
+   170        48        865.0     18.0      0.0  				uzs_mb.append(aux_usp1+aux_usz1-aux_usp-aux_usz)
+   171                                           				
+   172                                           				# activate groundwater component (gw)
+   173        48        616.0     12.8      0.0  				if data_in.run_GW == 1:
+   174        48        736.0     15.3      0.0  					if dt_GW == data_in.dtSZ:
+   175                                           						# empty discharge array
+   176        48       1773.0     36.9      0.0  						env_state.SZgrid.at_node['discharge'][:] = 0.0
+   177                                           						
+   178                                           						# estimate and change recharge units [mm/h --> m/h]
+   179                                           						env_state.SZgrid.at_node['recharge'][:] = (
+   180        48       2324.0     48.4      0.0  								rch_agg - etg_agg)*0.001 #[mm/dt]
+   181                                           						
+   182                                           						# run groundwater component
+   183        48        720.0     15.0      0.0  						gw.run_one_step_gw(env_state, data_in.dtSZ/60,
+   184        48    1768972.0  36853.6      0.5  							swb.tht_dt,	env_state.Droot*0.001)
+   185                                           						
+   186                                           						# empty array
+   187        48       1820.0     37.9      0.0  						rch_agg = np.zeros(len(swb.L_0))
+   188        48        907.0     18.9      0.0  						etg_agg = np.zeros(len(swb.L_0))
+   189        48        508.0     10.6      0.0  						dt_GW = 0
+   190                                           					
+   191                                           					# time accumulator for gw	
+   192        48       4909.0    102.3      0.0  					dt_GW += np.int(data_in.dt)
+   193                                           				
+   194                                           				# update soil moisture
+   195        48        604.0     12.6      0.0  				swb.run_soil_aquifer_one_step(env_state,
+   196        48       1077.0     22.4      0.0  					env_state.grid.at_node['topographic__elevation'],
+   197        48        862.0     18.0      0.0  					env_state.SZgrid.at_node['water_table__elevation'],
+   198        48        496.0     10.3      0.0  					env_state.Duz,
+   199        48      16559.0    345.0      0.0  					swb.tht_dt)
+   200                                           				
+   201                                           				# update rooting depth
+   202        48        629.0     13.1      0.0  				env_state.Duz = swb.Duz
+   203                                           				
+   204                                           				# estimate groundwater storage change for delta t
+   205        48        583.0     12.1      0.0  				gws_mb.append(storage_uz_sz(env_state,
+   206        48        945.0     19.7      0.0  						np.array(swb.tht_dt),
+   207        48      35362.0    736.7      0.0  						gw.dh, data_in))#-aux_ssz)
+   208                                           				
+   209                                           				# save groundwater discharge at outlet for water balance
+   210        48        715.0     14.9      0.0  				dis_mb.append(np.sum(
+   211        48       6062.0    126.3      0.0  					env_state.SZgrid.at_node['discharge'][env_state.act_nodes])
+   212        48        794.0     16.5      0.0  					-gw.flux_out)
+   213                                           				
+   214                                           				#Extract average state and fluxes
+   215        48      10704.0    223.0      0.0  				outavg.extract_avg_var_pre(env_state.basin_nodes,rf)
+   216        48       9377.0    195.4      0.0  				outavg.extract_avg_var_UZ_inf(env_state.basin_nodes,inf)
+   217        48      13067.0    272.2      0.0  				outavg.extract_avg_var_UZ_swb(env_state.basin_nodes,swb)
+   218        48      12553.0    261.5      0.0  				outavg_rip.extract_avg_var_UZ_swb(env_state.basin_nodes,swb_rip)
+   219        48      14693.0    306.1      0.0  				outavg.extract_avg_var_OF(env_state.basin_nodes,ro)
+   220        48      14034.0    292.4      0.0  				outavg.extract_avg_var_SZ(env_state.basin_nodes,gw)
+   221                                           				
+   222                                           				#Extract point state and fluxes
+   223        48       5366.0    111.8      0.0  				outpts.extract_point_var_UZ_inf(env_state.gaugeidUZ,inf)
+   224        48       5965.0    124.3      0.0  				outpts.extract_point_var_UZ_swb(env_state.gaugeidUZ,swb)
+   225        48       4497.0     93.7      0.0  				outpts.extract_point_var_OF(env_state.gaugeidOF,ro)
+   226        48       2177.0     45.4      0.0  				outpts.extract_point_var_SZ(env_state.gaugeidGW,gw)
+   227        48        656.0     13.7      0.0  				state_var.get_env_state(t_pre, rf, inf, swb,
+   228        48       1328.0     27.7      0.0  									ro, gw, swb_rip, env_state)
+   229                                           				
+   230                                           				# update soil water content for next iteration
+   231        48       1175.0     24.5      0.0  				env_state.L_0 = np.array(swb.L_0)
+   232        48        594.0     12.4      0.0  				t_pre += 1
+   233        48        506.0     10.5      0.0  			t_eto += 1		
+   234         2         21.0     10.5      0.0  		t += 1
+   235                                           	
+   236         1         10.0     10.0      0.0  	mb = [pre_mb, exs_mb, tls_mb, rch_mb, gws_mb,
+   237         1         13.0     13.0      0.0  		uzs_mb, dis_mb, aet_mb, egw_mb, chs_mb]	
+   238                                           	
+   239                                           	# save catchment and riparian average results
+   240         1         17.0     17.0      0.0  	outavg.save_avg_var(env_state.fnameTS_avg+'.csv',
+   241         1     134576.0 134576.0      0.0  		rf.date_sim_dt)
+   242         1         39.0     39.0      0.0  	outavg_rip.save_avg_var(env_state.fnameTS_avg+'rip.csv',
+   243         1      64895.0  64895.0      0.0  		rf.date_sim_dt)
+   244                                           	
+   245                                           	# save point results
+   246         1         39.0     39.0      0.0  	outpts.save_point_var(env_state.fnameTS_OF, rf.date_sim_dt,
+   247         1        119.0    119.0      0.0  			ro.carea[env_state.gaugeidOF],
+   248         1    1335418.0 1335418.0      0.3  			env_state.rarea[env_state.gaugeidOF])	
+   249                                           	
+   250                                           	# save grided model result datasets 
+   251         1        122.0    122.0      0.0  	state_var.save_netCDF_var(env_state.fnameTS_avg+'.nc')
+   252                                           	
+   253                                           	# check mass balance
+   254         1         19.0     19.0      0.0  	check_mass_balance(env_state.fnameTS_avg, outavg, outpts,
+   255         1         22.0     22.0      0.0  			outavg_rip, mb, rf.date_sim_dt,
+   256         1     435659.0 435659.0      0.1  			ro.carea[env_state.gaugeidOF[0]])
+   257                                           	
+   258                                           	# Save water table for initial conditions
+   259         1         33.0     33.0      0.0  	save_map_to_rastergrid(env_state.SZgrid,
+   260         1         11.0     11.0      0.0  			'water_table__elevation',
+   261         1      18266.0  18266.0      0.0  			env_state.fnameTS_avg + '_wte_ini.asc')
+   262                                           	
+   263                                           	# Save soil moisture for initial conditions
+   264         1         38.0     38.0      0.0  	save_map_to_rastergrid(env_state.grid,
+   265         1         11.0     11.0      0.0  			'Soil_Moisture',
+   266         1      19802.0  19802.0      0.0  			env_state.fnameTS_avg + '_tht_ini.asc')
 

@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
-from run_DRYP_BD import run_DRYP
-#from run_DRYP_BDv2 import run_DRYP
+from main_DRYP import run_DRYP
 import time
 
 filename_list = 'DRYP_model_list.txt'

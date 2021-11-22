@@ -1,11 +1,7 @@
 """Flow accumulator DRYP
 """
 import numpy as np
-#from numba import jit
-#from numba import guvectorize
-#import pyximport; pyximport.install()
-#from components.TransLoss import find_discharge_and_losses # for windows
-#from TransLoss import find_discharge_and_losses # for linux
+import fortran
 from landlab.components.flow_accum import flow_accum_bw#, make_ordered_node_array
 from landlab.core.utils import as_id_array
 from landlab import RasterModelGrid
@@ -54,6 +50,7 @@ class runoff_routing(object):
 					env_state.area_cells,
 					env_state.grid.boundary_nodes)
 		#print(env_state.grid.boundary_nodes)
+	
 	def run_runoff_one_step(self, inf, swb, aof, env_state, data_in):
 		"""Function to make FlowAccumulator calculate drainage area and
 		discharge.
@@ -91,9 +88,10 @@ class runoff_routing(object):
 			# this function return
 			# discharge, QTL, Q_ini, Q_aof
 			#aux = find_discharge_and_losses(
-			discharge, QTL, Q_ini, Qaof = find_discharge_and_losses(
+			env_state.grid.at_node['runoff'][env_state.grid.boundary_nodes] = 0
+			fortran.TRANSLOSS.find_discharge_and_losses(
 				self.s, self.r,
-				np.array(env_state.grid.at_node['runoff']),#Qw
+				np.array(env_state.grid.at_node['runoff']*env_state.area_cells),#Qw
 				np.array(env_state.grid.at_node['SS_loss']), #Criv
 				np.array(env_state.grid.at_node['decay_flow']), #Kt
 				np.array(env_state.grid.at_node['Transmission_losses']), #QTL
@@ -104,9 +102,10 @@ class runoff_routing(object):
 				np.array(env_state.grid.at_node['riv_sat_deficit']), #riv_std
 				np.array(env_state.grid.at_node['par_3']), #P3
 				np.array(env_state.grid.at_node['par_4']), #P4
-				np.array(env_state.area_cells),
-				np.array(env_state.grid.boundary_nodes),
-				self.Kloss)
+				#np.array(env_state.area_cells),
+				#np.array(env_state.grid.boundary_nodes),
+				self.Kloss,
+				discharge, QTL, Q_ini, Qaof)
 			
 			env_state.grid.at_node["surface_water__discharge"][:] = discharge
 			env_state.grid.at_node['Transmission_losses'][:] = QTL

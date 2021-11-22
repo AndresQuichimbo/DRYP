@@ -87,9 +87,17 @@ class runoff_routing(object):
 			env_state.grid.at_node['Transmission_losses'][env_state.river_ids_nodes] = 0.0				
 			self.dis_dt[:] = 0				
 			noflow = 0
-		self.tls_dt = np.array(env_state.grid.at_node['Transmission_losses']*1000.0/env_state.area_cells)
+			
+		# update transmission losses [mm]
+		self.tls_dt = np.array(env_state.grid.at_node['Transmission_losses']
+				*1000.0/env_state.area_cells)
+		
+		# update transmission losses volume [m3]
 		self.tls_flow_dt = np.array(env_state.grid.at_node['Transmission_losses'])
-		self.qfl_dt[act_nodes] = np.array(env_state.grid.at_node['Q_ini'][act_nodes])
+		
+		# update channel storage [mm]
+		self.qfl_dt[act_nodes] = np.array(env_state.grid.at_node['Q_ini'][act_nodes]
+				*1000.0/env_state.area_cells[act_nodes])
 		#print(self.tls_dt[act_nodes])
 # ===================================================================
 # Transmission losses functions

@@ -37,6 +37,8 @@ class GlobalTimeVarPts:
 		self.WTE = []
 		self.HEAD = []	# hydraulic head/water table bottom layer
 		self.WRSI = []
+		self.THTl = []
+		
 	
 	def extract_point_var_pre(self,nodes,pre):
 		self.PRE.append(pre.rain[nodes])	
@@ -56,6 +58,9 @@ class GlobalTimeVarPts:
 		self.THT.append(swb.tht_dt[nodes])		
 		self.PCL.append(swb.pcl_dt[nodes])
 		self.WRSI.append(swb.WRSI[nodes])
+		self.two_layer = 0
+		if self.two_layer == 1:
+			self.THTl.append(swb.thtl_dt[nodes])
 	
 	def extract_point_var_SZ(self, nodes, gw):
 		self.WTE.append(gw.wte_dt[nodes])
@@ -145,6 +150,20 @@ class GlobalTimeVarPts:
 			os.remove(fname_out) if os.path.exists(fname_out) else None			
 			df.to_csv(fname_out,index = False)
 			
+			# Soil moisture			
+			if self.two_layer == 1:
+				df = pd.DataFrame()			
+				df['Date'] = time			
+				data = np.transpose(self.THTl)
+				
+				for i in range(len(data)):			
+					field = 'SM_'+str(i)				
+					df[field] = data[i,:]
+					
+				fname_out = fname+'_SMl.csv'			
+				os.remove(fname_out) if os.path.exists(fname_out) else None			
+				df.to_csv(fname_out,index = False)
+			
 			# Soil percolation			
 			df = pd.DataFrame()			
 			df['Date'] = time			
@@ -172,7 +191,7 @@ class GlobalTimeVarPts:
 			df.to_csv(fname_out,index = False)
 		
 		if self.OFL:
-				
+			# Channel flow[mm]
 			df = pd.DataFrame()			
 			df['Date'] = time			
 			data = np.transpose(self.OFL)
@@ -197,6 +216,7 @@ class GlobalTimeVarPts:
 			#os.remove(fname_dis) if os.path.exists(fname_dis) else None			
 			#df.to_csv(fname_dis,index = False)
 			
+			# transmission losses
 			df = pd.DataFrame()			
 			df['Date'] = time			
 			data = np.transpose(self.TLS)
@@ -209,15 +229,15 @@ class GlobalTimeVarPts:
 			os.remove(fname_dis) if os.path.exists(fname_dis) else None			
 			df.to_csv(fname_dis,index = False)
 			
+			# channel storage
 			df = pd.DataFrame()			
 			df['Date'] = time			
 			data = np.transpose(self.QFL)#+self.OFL)
-			#print(rarea, data)
-			for i, irarea in enumerate(rarea):#range(len(data)):			
-				field = 'QFL_'+str(i)				
-				df[field] = data[i,:]/irarea
+			for i, irarea in enumerate(rarea):#range(len(data)):
+				field = 'CHS_'+str(i)				
+				df[field] = data[i,:]#/irarea
 			
-			fname_dis = fname+'QFL.csv'			
+			fname_dis = fname+'CHS.csv'			
 			os.remove(fname_dis) if os.path.exists(fname_dis) else None			
 			df.to_csv(fname_dis,index = False)
 			
@@ -273,8 +293,8 @@ class GlobalTimeVarAvg:
 		self.AET = []
 		self.INF = []	# Infiltration rate [mm/day]
 		self.EXS = []	# Runoff [mm/day]
-		self.OFL = []	# Overlandflow [mm/day]
-		self.QFL = []
+		#self.OFL = []	# Overlandflow [mm/day]
+		self.CHS = []	# channel storage [mm]
 		self.TLS = []
 		self.PCL = []
 		self.THT = []
@@ -290,7 +310,7 @@ class GlobalTimeVarAvg:
 		
 			self.cth_factor = []
 		
-	def extract_avg_var_pre(self,nodes,pre):		
+	def extract_avg_var_pre(self, nodes, pre):		
 		if len(self.cth_factor):			
 			area_catch_factor = np.array(self.cth_factor[nodes])		
 		else:		
@@ -299,7 +319,7 @@ class GlobalTimeVarAvg:
 		self.PRE.append(np.sum(area_catch_factor*pre.rain[nodes]))	
 		self.PET.append(np.sum(area_catch_factor*pre.PET[nodes]))
 		
-	def extract_avg_var_OF(self,nodes,ro):
+	def extract_avg_var_OF(self, nodes, ro):
 		if len(self.cth_factor):		
 			area_catch_factor = np.array(self.cth_factor[nodes])		
 		else:		
@@ -309,8 +329,9 @@ class GlobalTimeVarAvg:
 			factor = 1
 		else:
 			factor = (1000/ro.carea[nodes])
-		self.OFL.append(np.sum(area_catch_factor*factor*ro.dis_dt[nodes]))		
+		#self.OFL.append(np.sum(area_catch_factor*factor*ro.dis_dt[nodes]))		
 		self.TLS.append(np.sum(area_catch_factor*ro.tls_dt[nodes]))
+		self.CHS.append(np.sum(area_catch_factor*ro.qfl_dt[nodes]))
 	
 	def extract_avg_var_UZ_inf(self,nodes,inf):	
 		if len(self.cth_factor):		
@@ -340,7 +361,7 @@ class GlobalTimeVarAvg:
 		
 		if self.PRE:		
 			df['PET'] = self.PET			
-			df['Pre'] = self.PRE		
+			df['PRE'] = self.PRE		
 		if self.AET:		
 			df['AET'] = self.AET			
 			df['PCL'] = self.PCL			
@@ -350,7 +371,7 @@ class GlobalTimeVarAvg:
 			df['INF'] = self.INF		
 		if self.TLS:		
 			df['TLS'] = self.TLS			
-			df['DIS'] = self.OFL		
+			#df['DIS'] = self.OFL		
 		if self.WTE:		
 			df['WTE'] = self.WTE		
 		#df.index = pd.DatetimeIndex(df['Date'])
@@ -395,6 +416,8 @@ class GlobalGridVar:
 			# Calculate text time step			
 			self.idate = addtime(inputfile.ini_date, self.delta)
 			self.pdate = inputfile.ini_date
+			#print(self.idate, self.pdate)
+			
 			# Store variables
 			self.PRE = []
 			self.PET = []
@@ -412,12 +435,17 @@ class GlobalGridVar:
 			self.nsteps = 0
 			
 	def get_env_state(self, t_date, pre, inf, swb, ro, gw, swb_rip, env_state):
+		"""Extract grid variables and aggregate at the
+		specifed temporal scale
+		"""
 		if self.save_results == 1:
+			# check if the last date is read
 			if t_date == len(pre.date_sim_dt)-1:
 				self.idate = pre.date_sim_dt[t_date]
 				date = pre.date_sim_dt[t_date]
 			else:
 				date = pre.date_sim_dt[t_date+1]
+			#print(date, self.idate, self.nsteps)
 			self.PRE_dt += pre.rain
 			self.PET_dt += pre.PET
 			self.AET_dt += swb.aet_dt
@@ -431,6 +459,8 @@ class GlobalGridVar:
 			self.GDH_dt += env_state.SZgrid.at_node['discharge'][:]
 			self.WTE_dt += gw.wte_dt		
 			self.nsteps += 1
+			
+			# 
 			if self.idate == date:
 				self.PRE.append(self.PRE_dt)
 				self.PET.append(self.PET_dt)
@@ -461,7 +491,9 @@ class GlobalGridVar:
 				self.time_grid.append(self.pdate)
 				self.pdate = self.idate
 				self.idate = addtime(self.idate, self.delta)
+				#print(self.nsteps)
 				self.nsteps = 0
+				#print(self.idate)
 			
 	def	save_netCDF_var(self, fname):		
 		if self.save_results == 1:
@@ -469,10 +501,12 @@ class GlobalGridVar:
 			dataset.createDimension('time', None)		
 			dataset.createDimension('lon', self.grid_shape[1])		
 			dataset.createDimension('lat', self.grid_shape[0])		
+			
 			# Create coordinate variables for 4-dimensions		
 			lat = dataset.createVariable('lat', np.float32, ('lat',))		
 			lon = dataset.createVariable('lon', np.float32, ('lon',))		
 			time = dataset.createVariable('time', np.float32, ('time',))		
+			
 			# Create the actual 4-d variable			
 			npre = dataset.createVariable('pre', np.float32, ('time', 'lat', 'lon'))
 			npet = dataset.createVariable('pet', np.float32, ('time', 'lat', 'lon'))
@@ -491,7 +525,7 @@ class GlobalGridVar:
 			time.calendar = 'gregorian'
 			lat[:] = self.yaxis
 			lon[:] = self.xaxis
-			
+			#print(self.time_grid)
 			for j, idate in enumerate(self.time_grid):		
 				time[j] = date2num(idate, units=time.units, calendar=time.calendar)
 				npre[j,:,:] = (self.PRE[j][:]).reshape(self.grid_shape)
@@ -571,17 +605,31 @@ def check_mass_balance(fname, outavg, outOF, outavg_AER, data, dt, area):
 	df_summary.to_csv(fname_out, index=False)
 	print(df_summary)
 	
+	#save water overal balance
+	# pre:	precipitation [mm]
+	# exs:	runoff [mm]
+	# tls:	transmission losses [mm]
+	# rch:	total recharge [mm]
+	# gws:	change in groundwater storage [mm]
+	# uzs:	change in soil water storage [mm]
+	# gbf	base flow - gw discharge [mm]
+	# aet:	actual evapotranspiration [mm]
+	# egw:	capillary raise [mm]
+	# chs:	channel storage [mm]
 	df = pd.DataFrame()
+	
 	df['Date'] = dt
 	df['pre'] = np.array(data[0])
 	df['exs'] = np.array(data[1])
 	df['tls'] = np.array(data[2])
 	df['rch'] = np.array(data[3])
-	df['gws'] = np.array(data[4])*1000.
+	df['gws'] = np.array(data[4])
 	df['uzs'] = np.array(data[5])
-	df['dis'] = np.array(data[6])*1000.
+	df['gbf'] = np.array(data[6])
 	df['aet'] = np.array(data[7])
 	df['egw'] = np.array(data[8])
+	df['chs'] = np.array(data[9])
+	df['rzs'] = np.array(data[10])
 	fname_out = fname+'_mb.csv'
 	df.to_csv(fname_out, index = False)
 	
@@ -596,7 +644,7 @@ def check_mass_balance_error(df):
 	OUT_UZ = df['rch'] + df['aet']
 	
 	IN_SZ = df['rch']	
-	OUT_SZ = df['dis'] + df['egw']
+	OUT_SZ = df['gbf'] + df['egw']
 	
 	ERROR_UZ = IN_UZ - OUT_UZ - df['uzs']	
 	ERROR_SZ = IN_SZ - OUT_SZ - df['gws']

@@ -2,6 +2,7 @@ import numpy as np
 import os
 from landlab import RasterModelGrid
 from landlab.io import read_esri_ascii
+import scipy.special as spy
 
 class infiltration(object):
 	def __init__(self, env_state, data_in):		
@@ -11,9 +12,9 @@ class infiltration(object):
 		if data_in.inf_method == 1:
 			print('Infiltration approach: Philips')			
 		elif data_in.inf_method == 2:
-			print('Infiltration approach: Modified GA')			
-		elif data_in.inf_method == 3:
 			print('Infiltration approach: Upscaled GA')			
+		elif data_in.inf_method == 3:
+			print('Infiltration approach: Modified GA')			
 		else:
 			print('Infiltration approach: Schaake Method')			
 		print('Change approach in setting_file: line 20')
@@ -25,12 +26,14 @@ class infiltration(object):
 		self.exs_dt = np.zeros(env_state.grid_size)
 		self.K_sat = np.array(env_state.grid.at_node['Ksat_soil'][act_nodes])
 		self.PSI_f = np.array(env_state.grid.at_node['PSI'][act_nodes])
+		
 		# Schaake infiltration approach		
 		if data_in.inf_method == 0:		
 			delta_time = data_in.dtUZ*60/86400			
 			ks_ref = 7.2*data_in.unit_sim_k #mm/h			
 			ga_kdt = 1.0-np.exp(-data_in.kdt_r*delta_time*self.K_sat/ks_ref)			
 			self.args = ga_kdt
+		
 		# Read sigma_Ksat for UPSACALED_GA		
 		elif data_in.inf_method == 2:
 			if not os.path.exists(data_in.fname_sigma_ks):
@@ -62,15 +65,16 @@ class infiltration(object):
 		Ft0 = np.array(env_state.Ft_0[act_nodes])
 		rain_day_before = self.rain_day_before
 				
-		Ft, SORP, inf_t, excess, t_0, rain_day_before = infiltration_model(rainfall,
-																self.K_sat,
-																PSI_f,
-																Droot,SORP0,
-																L_0,Lsat,
-																np.array(t_0),
-																Ft0,rain_day_before,
-																inf_method,
-																self.args)
+		Ft, SORP, inf_t, excess, t_0, rain_day_before = infiltration_model(
+				rainfall,
+				self.K_sat,
+				PSI_f,
+				Droot, SORP0,
+				L_0,Lsat,
+				np.array(t_0),
+				Ft0, rain_day_before,
+				inf_method,
+				self.args)
 
 		# Update environmental states
 		env_state.Ft_0[act_nodes] = Ft
@@ -105,10 +109,10 @@ def infiltration_model(rainfall,K_sat,PSI_f,Droot,SORP0,L_0,Lsat,t_0,Ft0,rain_da
 	make zero precipitation for cell with saturated
 	and zero depth of UZ zone	 
 	"""
-	sat_excess_dt = np.where((Lsat-L_0) <= 0.0,rainfall,0.0)
-	rainfall = np.where((Lsat-L_0) <= 0.0,0.0,rainfall)
-	sat_excess_dt = np.where(Droot <= 0.0,rainfall,sat_excess_dt)
-	rainfall = np.where(Droot <= 0.0,0.0,rainfall)
+	sat_excess_dt = np.where((Lsat-L_0) <= 0.0, rainfall, 0.0)
+	rainfall = np.where((Lsat-L_0) <= 0.0, 0.0, rainfall)
+	sat_excess_dt = np.where(Droot <= 0.0, rainfall, sat_excess_dt)
+	rainfall = np.where(Droot <= 0.0, 0.0, rainfall)
 	inode_inf_aux = np.where(rainfall > 0.0)[0]
 	
 	if len(inode_inf_aux) > 0:
@@ -117,57 +121,96 @@ def infiltration_model(rainfall,K_sat,PSI_f,Droot,SORP0,L_0,Lsat,t_0,Ft0,rain_da
 			ga_kdt = args[0]
 			SORP = np.zeros_like(rainfall)
 			Ft = np.zeros_like(rainfall)
+			
+			# Call SCHAAKE function
 			inf_dt, excess_dt = SCHAAKE(rainfall, ga_kdt, Lsat, L_0)
+			
 		elif inf_method == 1: # PHILIPS EQUATION
 			F = np.zeros_like(rainfall)
-			SORP = np.where(Droot == 0,0.0,np.sqrt(2*K_sat*PSI_f*((Lsat-L_0)/Droot)))
+			
+			# calulate sorptivity
+			SORP = np.where(Droot == 0, 0,
+					2*K_sat*PSI_f*((Lsat-L_0)/Droot)
+					)
+			
+			#if len(np.argwhere(np.isnan(SORP))) > 0:
+			#	raise(print('stop'))
+			SORP[SORP > 0] =  np.sqrt(SORP[SORP > 0])
+			
 			if rain_day_before == 1:
 				SORP[inode_inf_aux] = SORP0[inode_inf_aux]
 				t_i[inode_inf_aux] = t_0[inode_inf_aux]
 				F[inode_inf_aux] = Ft0[inode_inf_aux]
-			Ft,inf_dt,excess_dt = Philip(rainfall, 
+			
+			# call Philips function
+			Ft, inf_dt, excess_dt = Philip(rainfall, 
 										0.5*K_sat,
 										SORP, F,
 										np.array(t_i))
+										
 		elif inf_method == 2: # UPSACALED GREEN & AMPT METHOD
 			Ft = np.zeros_like(rainfall)
 			mu_logks = args[0][0]
 			sigma_ks = args[0][1]
-			SORP = np.where(Droot == 0,0.0,PSI_f*((Lsat-L_0)/Droot))
+			SORP = np.where(Droot == 0, 0, PSI_f*((Lsat-L_0)/Droot))
 			if rain_day_before == 1:
 				SORP[inode_inf_aux] = SORP0[inode_inf_aux]
 				t_i[inode_inf_aux] = t_0[inode_inf_aux]
-			inf_dt,excess_dt = Upscaled_GA(rainfall,K_sat,SORP,
+			
+			# call upscaled GA function
+			inf_dt, excess_dt = Upscaled_GA(rainfall,K_sat,SORP,
 											np.array(t_i+1.0),
 											mu_logks,
 											sigma_ks)
+											
 		elif inf_method == 3: # MODIFIED GREEN AND AMPT EQUATION
 			F = np.zeros_like(rainfall)
-			SORP = np.where(Droot == 0,0.0,np.sqrt(2*K_sat*PSI_f*((Lsat-L_0)/Droot)))
+			SORP = np.where(Droot == 0, 0,
+				np.sqrt(2*K_sat*PSI_f*((Lsat-L_0)/Droot)))
+				
 			if rain_day_before == 1:
 				SORP[inode_inf_aux] = SORP0[inode_inf_aux]
 				t_i[inode_inf_aux] = t_0[inode_inf_aux]
 				F[inode_inf_aux] = Ft0[inode_inf_aux]
-			Ft,inf_dt,excess_dt = Mod_GA(rainfall,
+			
+			# Call Mod_GA function
+			Ft, inf_dt, excess_dt = Mod_GA(rainfall,
 										K_sat,
 										np.array(SORP),
 										F,
-										np.array(t_i),1.)
+										np.array(t_i), 1.)
+		
+		if inf_method > 1:
+			inf_dt[SORP == 0] = 0
+			excess_dt[SORP == 0] = rainfall[SORP == 0]
 		
 		t_0[inode_inf_aux] += 1
 		rain_day_before = 1
 	else:
-		t_0 = np.zeros(len(rainfall),dtype = float)
+		t_0 = np.zeros(len(rainfall), dtype=float)
 		rain_day_before = 0
-		inf_dt = np.zeros(len(rainfall),dtype = float)
-		Ft = np.zeros(len(rainfall),dtype = float)
-		SORP = np.zeros(len(rainfall),dtype = float)
-		excess_dt = np.zeros(len(rainfall),dtype = float)
+		inf_dt = np.zeros(len(rainfall), dtype=float)
+		Ft = np.zeros(len(rainfall), dtype=float)
+		SORP = np.zeros(len(rainfall), dtype=float)
+		excess_dt = np.zeros(len(rainfall), dtype=float)
 	excess_dt += sat_excess_dt
 	return Ft, SORP, inf_dt, excess_dt, t_0, rain_day_before
 
-# Schaake infiltration approach, Schaake et. al. (1996)
-def SCHAAKE(P,ga_kdt,Lsat,L):
+ 
+def SCHAAKE(P, ga_kdt, Lsat, L):
+	"""Schaake infiltration approach, Schaake et. al. (1996)
+	PARAMETERS:
+	-----------
+	P:	Precipitation
+	ks:	Sat. Hydraulic Conductivity
+	Sp:	Sorptivity (keep the same sorptivity for one event)
+	F:	Cummulative infiltration
+	t:	Cummulative event time
+	OUTPUTS:
+	--------
+	I:		Infiltration over the time step
+	RO:		Runoff
+	"""
 	D = Lsat-L
 	I_aux = D*ga_kdt
 	I = P*I_aux/(P+I_aux)
@@ -175,33 +218,61 @@ def SCHAAKE(P,ga_kdt,Lsat,L):
 	RO = P-I
 	return I, RO
 
-# Philips infiltration rate
-def Philip(P,ks,Sp,F,t):
-	# P:	Precipitation
-	# ks:	Sat. Hydraulic Conductivity
-	# Sp:	Sorptivity (keep the same sorptivity for one event)
-	# F:	Cummulative infiltration
-	# t:	Cummulative event time
+def Philip(P, ks, Sp, F, t):
+	"""Philips Infiltration function
+	PARAMETERS:
+	-----------
+	P:	Precipitation
+	ks:	Sat. Hydraulic Conductivity
+	Sp:	Sorptivity (keep the same sorptivity for one event)
+	F:	Cummulative infiltration
+	t:	Cummulative event time
+	OUTPUTS:
+	--------
+	Ft:		Total Cumulative infiltration
+	I:		Infiltration over the time step
+	RO:		Runoff
+	"""
 	dt = 1
-	Fp = np.where(P > 0,0.5*(Sp**2)*(P-0.5*ks)*((P-ks)**(-2)),0)
+		
+	Fp = np.where(P > 0, 0.5*(Sp**2)*(P-0.5*ks)*((P-ks)**(-2)), 0)
 	Fp_aux = Fp-F
-	dtp = np.where(P > 0.0,Fp_aux/P,0.0)
-	ts = np.where(dtp > dt,t+dt,t+dtp)
-	ts = np.where(dtp < 0,t,ts)
-	Faux = np.where(dtp < 0,F,Fp)
-	sp_aux = np.sqrt(Sp**2+4*ks*Faux)-Sp
+		
+	dtp = np.where(P > 0.0, Fp_aux/P, 0.0)
+	
+	ts = np.where(dtp > dt, t+dt, t+dtp)
+	ts = np.where(dtp < 0, t, ts)
+	
+	Faux = np.where(dtp < 0, F, Fp)
+	
+	sp_aux = np.sqrt(Sp**2+4*ks*Faux) - Sp
+	
 	to_p = (1/4)*(sp_aux/ks)**2
-	to = np.where(dtp < dt,ts-to_p,t+dt-ts)
-	dtc = np.where(P == 0.0,0.0,t+dt-to)
-	Ft_aux = np.where(dtc == 0.0,0,Sp*dtc**0.5+ks*dtc)
-	Ft = np.where(F+P < Ft_aux,F+P,Ft_aux)
-	I = Ft-F
-	RO = P-I
-	return Ft,I,RO
+	to = np.where(dtp < dt, ts-to_p, t+dt-ts)
+	
+	dtc = np.where(P == 0.0, 0.0, t+dt-to)
+	
+	Ft_aux = np.where(dtc == 0.0, 0, Sp*dtc**0.5+ks*dtc)
+	Ft = np.where(F+P < Ft_aux, F+P, Ft_aux)
+	I = Ft - F
+	RO = P - I
+	return Ft, I, RO
 
-# Upscaled Green & Ampt infiltration approach - Craig et. al. 2010
-# Required Gauss2p, epsilon, and getX
 def Upscaled_GA(P, ks, Sp, t, mu_Y, sigma_Y):
+	"""Upscaled Green & Ampt infiltration approach - Craig et. al. 2010
+	Required Gauss2p, epsilon, and getX
+	PARAMETERS:
+	-----------
+	P:	Precipitation
+	ks:	Sat. Hydraulic Conductivity
+	Sp:	Sorptivity (keep the same sorptivity for one event)
+	F:	Cummulative infiltration
+	t:	Cummulative event time
+	OUTPUTS:
+	--------
+	I:		Infiltration over the time step
+	RO:		Runoff
+	"""
 	X = getX(t, Sp, P)
 	A = np.where(X == 0, 0, (np.log(P*X)-mu_Y)/(sigma_Y*np.sqrt(2)))
 	A = np.where(sigma_Y == 0, 1e99, A)
@@ -234,11 +305,24 @@ def epsilon_fks(k,t,Sp,P,mu_Y,sigma_Y,ks):
 def getX(t, Sp, P):
 	X_aux = P*t/Sp
 	return np.where(X_aux == 0.0,0.0,1/(1+1/X_aux))
-	
 
-# Modified Green & Ampt infiltration approach
-# Requires solver (Newthon_Rap_Mod_GA) and F (f_GA) and F' (dF_GA)
+
 def Mod_GA(P,ks,Sp,F,t,dt):
+	"""Modified Green & Ampt infiltration approach
+	Requires solver (Newthon_Rap_Mod_GA) and F (f_GA) and F' (dF_GA)
+	PARAMETERS:
+	-----------
+	P:	Precipitation
+	ks:	Sat. Hydraulic Conductivity
+	Sp:	Sorptivity (keep the same sorptivity for one event)
+	F:	Cummulative infiltration
+	t:	Cummulative event time
+	OUTPUTS:
+	--------
+	Ft:		Total Cumulative infiltration
+	I:		Infiltration over the time step
+	RO:		Runoff
+	"""
 	tp = np.where(P > ks,Sp/(P-ks),0)
 	aux_1 = tp-t
 	aux_2 = t+1-tp

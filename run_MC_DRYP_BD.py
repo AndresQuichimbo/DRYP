@@ -1,13 +1,13 @@
 from components.DRYP_Gen_Func import write_sim_file
 import pandas as pd
-from run_DRYP_BD import run_DRYP
+from main_DRYP import run_DRYP
 from shutil import copyfile
 import time
-#filename_input = '../Kenya/EW_IMERG_input_3h.dmp'
-filename_input = '../Kenya/EW_MSWEAP_input_3h.dmp'
+filename_input = '../Kenya/EW_IMERG_input_3h.dmp'
+#filename_input = '../Kenya/EW_MSWEAP_input_3h.dmp'
 #filename_input = '../Kenya/EW_IMERG_input_v1.dmp'
 #filename_input = '../Kenya/EW_MSWEAP_input_v1.dmp'
-filename_paramerer = '../Kenya/KE_parameter_set_IMERG.csv'
+filename_paramerer = '../Kenya/KE_parameter_set_b.csv'
 #filename_paramerer = '../Kenya/KE_parameter_set_MSWEP.csv'
 parameter = pd.read_csv(filename_paramerer)
 

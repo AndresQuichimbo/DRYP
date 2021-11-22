@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from main_DRYP import run_DRYP
+from main_DRYP_2L import run_DRYP
 
 import time 
 
