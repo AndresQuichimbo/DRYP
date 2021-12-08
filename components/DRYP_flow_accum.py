@@ -81,7 +81,7 @@ class runoff_routing(object):
 				inf.exs_dt[act_nodes]*0.001* env_state.cth_area[act_nodes]
 				+ (env_state.SZgrid.at_node['discharge'][act_nodes])
 				)
-				
+		#print(env_state.grid.at_node['runoff'][act_nodes])		
 		check_dry_conditions = len(np.where(
 				(env_state.grid.at_node['runoff'][act_nodes]
 				+ env_state.grid.at_node['Q_ini'][act_nodes]
@@ -113,9 +113,9 @@ class runoff_routing(object):
 			env_state.grid.at_node['Q_ini'][:] = Q_ini
 			env_state.grid.at_node['AOF'][:] = Qaof
 			
-			#env_state.grid.at_node["surface_water__discharge"][:] = aux[0] #discharge
-			#env_state.grid.at_node['Transmission_losses'][:] = aux[1] #QTL
-			#env_state.grid.at_node['Q_ini'][:] = aux[2] #Q_ini
+			#print(env_state.grid.at_node["surface_water__discharge"][:])# = aux[0] #discharge
+			#print(env_state.grid.at_node['Transmission_losses'][:])# = aux[1] #QTL
+			#print(env_state.grid.at_node['Q_ini'][:])# = aux[2] #Q_ini
 			#env_state.grid.at_node['AOF'][:] = aux[3] #aof
 			
 			self.dis_dt[act_nodes] = np.array(
@@ -354,11 +354,11 @@ def TransLossWV(Qw, Criv, Kt, QTL, Q_ini,
 		# abstractions, it can be modified
 		if Qin <= Qaof:
 			Qaof = Qaoft*Qin
-		Qin += -Qaoft
+		#Qin += -Qaof
 			
 		Q_ini = 0
 		QTL = 0
-			
+		#print(Qin,riv_std,Q_ini,Qw,Qaoft)	
 		if Qin > 0.0:		
 			if riv_std <= 0.0:		
 				aux = exp_decay_wp(Qin, Kt)
@@ -410,4 +410,5 @@ def exp_decay_loss_wp(TL,Qin,k,P3,P4):
 def exp_decay_wp(Qin,k):
 	Qout = Qin*(1-np.exp(-k))
 	Qo = Qin-Qout
+	
 	return np.array([Qout, Qo])

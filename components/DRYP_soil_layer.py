@@ -208,12 +208,15 @@ class swbm(object):
 		qriv:		runoff
 		inf:		infiltration
 		"""
-		#print(qsz)
+		
 		# water required to saturate riparian zone
+		#print(self.smd_uz)
 		qriv = qsz - self.smd_uz		
 		self.smd_uz = np.where(qriv > 0, 0, self.smd_uz-qsz)
 		qriv[qriv < 0] = 0
-		#print(self.smd_uz)
+		#print(qsz)
+		
+		#print('sm',self.smd_uz)
 		# water required to overcome potential ET
 		smd_et = pet - qriv
 		

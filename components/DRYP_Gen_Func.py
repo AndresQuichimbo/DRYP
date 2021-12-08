@@ -68,7 +68,7 @@ class GlobalTimeVarPts:
 	def extract_point_var_SZ_L2(self, nodes, grid):
 		self.HEAD.append(grid.at_node['HEAD_2'][nodes])
 	
-	def save_point_var(self, fname, time, area, rarea):
+	def save_point_var(self, fname, time, area, rarea, depth=1):
 		# precipitation
 		if self.INF:
 			df = pd.DataFrame()
@@ -197,9 +197,13 @@ class GlobalTimeVarPts:
 			data = np.transpose(self.OFL)
 			
 			for i, iarea in enumerate(area):			
-				field = 'OF_'+str(i)				
-				df[field] = data[i,:]*1000./iarea
-			
+				field = 'OF_'+str(i)
+				if depth == 0:
+					#print("Discharge is save in mm")
+					df[field] = data[i,:]*1000./iarea
+				else:
+					df[field] = data[i,:]
+				
 			fname_dis = fname+'Dis.csv'			
 			os.remove(fname_dis) if os.path.exists(fname_dis) else None			
 			df.to_csv(fname_dis,index = False)

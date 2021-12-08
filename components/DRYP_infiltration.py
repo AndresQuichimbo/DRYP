@@ -47,7 +47,7 @@ class infiltration(object):
 		else:
 			self.args = ()
 	
-	def run_infiltration_one_step(self, rf, env_state, data_in):
+	def run_infiltration_one_step(self, rain, env_state, data_in):
 		# L_0:	Initial soil water content [mm]
 		# Lsat:	Saturated water content [mm]
 		# Ft0:	Cummulative infiltration [mm]
@@ -55,7 +55,7 @@ class infiltration(object):
 		# SORP0:Sorptivity at the begining of the time step
 		inf_method = data_in.inf_method
 		act_nodes = env_state.act_nodes
-		rainfall = np.array(rf.rain[act_nodes])
+		rainfall = np.array(rain[act_nodes])
 		PSI_f = np.array(self.PSI_f)
 		Droot = np.array(env_state.Duz[act_nodes])
 		SORP0 = np.array(env_state.SORP0[act_nodes])

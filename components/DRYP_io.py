@@ -21,62 +21,9 @@ class inputfile(object):
 		# =================================================================
 		f = pd.read_csv(filename_inputs)
 		self.Mname = f.drylandmodel[1]
-		# Surface components ======================================== SZ = 
-		self.fname_DEM = f.drylandmodel[4]
-		self.fname_Area = f.drylandmodel[6]
-		self.fname_FlowDir = f.drylandmodel[8]
-		self.fname_Mask = f.drylandmodel[12]
-		self.fname_River = f.drylandmodel[14]
-		self.fname_RiverWidth = f.drylandmodel[16]
-		self.fname_RiverElev = f.drylandmodel[18]		
-		# Subsurface components ===================================== UZ = 
-		self.fname_n = f.drylandmodel[28]		# porosity (n)
-		self.fname_theta_r = f.drylandmodel[30]	# Saturated infiltration rate (a-Ks)
-		self.fname_AWC = f.drylandmodel[32]		# Available water content (AWC)
-		self.fname_wp = f.drylandmodel[34]		# wilting point (wp)
-		self.fname_SoilDepth = f.drylandmodel[36] # root zone (D)
-		self.fname_b_SOIL = f.drylandmodel[38]	# Soil parameter alpha (b)
-		self.fname_PSI = f.drylandmodel[40]		# Soil parameter alpha (alpha)
-		self.fname_Ksat_soil = f.drylandmodel[42] # Saturated infiltration rate (a-Ks)
-		self.fname_sigma_ks = f.drylandmodel[44]
-		self.fname_theta = f.drylandmodel[46]	# Initial water content [-]
-		self.fname_Ksat_ch = f.drylandmodel[48] # Channel Saturated hydraulic conductivity (Ks)
-		
-		# Groundwater components ==================================== GW = 
-		self.fname_GWdomain = f.drylandmodel[51]# GW Boundary conditions
-		self.fname_SZ_Ksat = f.drylandmodel[53] # Saturated hydraulic conductivity (Ks)
-		self.fname_SZ_Sy = f.drylandmodel[55] 	# Specific yield
-		self.fname_GWini = f.drylandmodel[57] 	# Initial water table
-		self.fname_FHB = f.drylandmodel[59]		# flux head boundary
-		self.fname_CHB = f.drylandmodel[61]		# Constant flux boundary
-		self.fname_SZ_bot = f.drylandmodel[63]	# Aquifer bottom elevation
-		
-		if len(f) < 89:
-			self.fname_a_aq = 'None'
-		else:
-			self.fname_a_aq = f.drylandmodel[89]
-		
-		if len(f) < 91:
-			self.fname_b_aq = 'None'
-		else:
-			self.fname_b_aq = f.drylandmodel[91]
-		# Meterological data ======================================== ET = 
-		self.fname_TSPre = f.drylandmodel[66]	# Precipitation file
-		self.fname_TSMeteo = f.drylandmodel[68]	# Evapotranspiration file
-		self.fname_TSABC = f.drylandmodel[70]	# Abstraction file: AOF, AUZ, ASZ
-		# Vegetation parameters ==========================================
-		self.fname_TSKc = f.drylandmodel[21]	# Vegetation parameter Kc
-		self.fname_Rip_width = f.drylandmodel[23]#Available
-		self.fname_Rip_init = f.drylandmodel[25] #Available
-		# Output files maps ===================================== Print = 
-		self.DirOutput = f.drylandmodel[81]		# Output directory
-		#reading output points
-		self.fname_DISpoints = f.drylandmodel[75]	# Discharge points
-		self.fname_SMDpoints = f.drylandmodel[77]	# Soil moisture points
-		self.fname_GWpoints = f.drylandmodel[79]	# Groundwater observation points
-		
+				
 		#==================================================================		
-		# Reading simulation and printing parameters		
+		# PARAMETER FILE		
 		filename_simpar = f.drylandmodel[87]
 		fsimpar = pd.read_csv(filename_simpar)
 		
@@ -115,34 +62,45 @@ class inputfile(object):
 		if self.inf_method > 3:
 			self.inf_method = 0
 		
-		aux_run_GW = fsimpar.DWAPM_SET[24].split()
-		
+		# read groundwater model activation
+		aux_run_GW = fsimpar.DWAPM_SET[24].split()		
 		self.run_GW = int(aux_run_GW[0])
 		if len(aux_run_GW) > 1:
 			self.gw_func = int(aux_run_GW[1])
 		else:
 			self.gw_func = 0
 		
-		self.run_OF_lr = int(fsimpar.DWAPM_SET[22])
+		#self.run_OF_lr = int(fsimpar.DWAPM_SET[22])
 				
-		self.print_sim_ti = int(fsimpar.DWAPM_SET[31])
-		self.print_t = int(fsimpar.DWAPM_SET[43])
+		# save netcdf files of model results
 		self.save_results = int(fsimpar.DWAPM_SET[33])
+		
+		# temporal agregation of model outputs
 		self.dt_results = fsimpar.DWAPM_SET[35]
-		self.print_maps_tn = int(fsimpar.DWAPM_SET[39])		
+		
+		# save discharge units
+		# 0: volumetric
+		# 1: depth
+		self.save_dis_depth = int(fsimpar.DWAPM_SET[39])
+		
+		#self.print_t = int(fsimpar.DWAPM_SET[43])
+		#self.print_maps_tn = int(fsimpar.DWAPM_SET[39])		
+		
 		# Unsaturated zone factors =========================================
 		self.kdt_r = float(fsimpar.DWAPM_SET[46])
 		self.kDroot = float(fsimpar.DWAPM_SET[48])	# k for soil depth
 		self.kAWC = float(fsimpar.DWAPM_SET[50])	# k for AWC
 		self.kKs = float(fsimpar.DWAPM_SET[52])		# k for soil infiltration
 		self.k_sigma_ks = float(fsimpar.DWAPM_SET[54])
+		
 		# River routing factors ============================================
 		self.Kloss = float(fsimpar.DWAPM_SET[56])	# infiltration on channel
 		self.T_loss = float(fsimpar.DWAPM_SET[58])	# Runoff decay flow
 		self.kpe = float(fsimpar.DWAPM_SET[60])
+		
 		# Saturated zone factors ===========================================
-		self.kKsat_gw = float(fsimpar.DWAPM_SET[62])# Runoff decay flow
-		self.kSy_gw = float(fsimpar.DWAPM_SET[64])
+		self.kKsat_gw = float(fsimpar.DWAPM_SET[62])	# Ksat factor
+		self.kSy_gw = float(fsimpar.DWAPM_SET[64])		# Sy factor
 		if len(fsimpar.DWAPM_SET) == 66:
 			self.GW_Cond_factor = float(fsimpar.DWAPM_SET[66])
 		else:
@@ -173,6 +131,76 @@ class inputfile(object):
 		self.run_FAc = 1
 		self.dt_OF = 1
 		self.Sim_period = self.end_datet - self.ini_date
+		
+		
+		# READING MODEL PARAMETER FILES ===================================
+		# Surface components ======================================== SZ = 
+		self.fname_DEM = f.drylandmodel[4]
+		self.fname_Area = f.drylandmodel[6]
+		self.fname_FlowDir = f.drylandmodel[8]
+		self.fname_Mask = f.drylandmodel[12]
+		self.fname_River = f.drylandmodel[14]
+		self.fname_RiverWidth = f.drylandmodel[16]
+		self.fname_RiverElev = f.drylandmodel[18]		
+		
+		# Subsurface components ===================================== UZ = 
+		self.fname_n = f.drylandmodel[28]		# porosity (n)
+		self.fname_theta_r = f.drylandmodel[30]	# Saturated infiltration rate (a-Ks)
+		self.fname_AWC = f.drylandmodel[32]		# Available water content (AWC)
+		self.fname_wp = f.drylandmodel[34]		# wilting point (wp)
+		self.fname_SoilDepth = f.drylandmodel[36] # root zone (D)
+		self.fname_b_SOIL = f.drylandmodel[38]	# Soil parameter alpha (b)
+		self.fname_PSI = f.drylandmodel[40]		# Soil parameter alpha (alpha)
+		self.fname_Ksat_soil = f.drylandmodel[42] # Saturated infiltration rate (a-Ks)
+		self.fname_sigma_ks = f.drylandmodel[44]
+		self.fname_theta = f.drylandmodel[46]	# Initial water content [-]
+		self.fname_Ksat_ch = f.drylandmodel[48] # Channel Saturated hydraulic conductivity (Ks)
+		
+		# Groundwater components ==================================== GW = 
+		self.fname_GWdomain = f.drylandmodel[51]# GW Boundary conditions
+		self.fname_SZ_Ksat = f.drylandmodel[53] # Saturated hydraulic conductivity (Ks)
+		self.fname_SZ_Sy = f.drylandmodel[55] 	# Specific yield
+		self.fname_GWini = f.drylandmodel[57] 	# Initial water table
+		self.fname_FHB = f.drylandmodel[59]		# flux head boundary
+		self.fname_CHB = f.drylandmodel[61]		# Constant flux boundary
+		self.fname_SZ_bot = f.drylandmodel[63]	# Aquifer bottom elevation
+		
+		# groundwater second layer
+		if self.run_GW > 1:
+			self.fname_SZ_botb = f.drylandmodel[90]	# Aquifer bottom elevation
+			self.fname_SZ_Ksatb = f.drylandmodel[92] # Saturated hydraulic conductivity (Ks)
+			self.fname_SZ_Syb = f.drylandmodel[94] 	# Specific yield
+			self.fname_SZ_Ssb = f.drylandmodel[96] 	# Specific yield
+			self.fname_GWinib = f.drylandmodel[98] 	# Initial water table
+			#self.fname_FHBb = f.drylandmodel[59]		# flux head boundary
+			#self.fname_CHBb = f.drylandmodel[61]		# Constant flux boundary
+			# only for Manny's model
+		if len(f) > 99:
+			self.fname_mask_of = f.drylandmodel[100]		# Constant flux boundary
+		else:
+			self.fname_mask_of = 'None'
+		#==================================================================
+		if self.gw_func	== 1:
+			self.fname_a_aq = f.drylandmodel[89]
+			self.fname_b_aq = f.drylandmodel[91]
+		else:
+			self.fname_a_aq = 'None'
+			self.fname_b_aq = 'None'
+			
+		# Meterological data ======================================== ET = 
+		self.fname_TSPre = f.drylandmodel[66]	# Precipitation file
+		self.fname_TSMeteo = f.drylandmodel[68]	# Evapotranspiration file
+		self.fname_TSABC = f.drylandmodel[70]	# Abstraction file: AOF, AUZ, ASZ
+		# Vegetation parameters ==========================================
+		self.fname_TSKc = f.drylandmodel[21]	# Vegetation parameter Kc
+		self.fname_Rip_width = f.drylandmodel[23]#Available
+		self.fname_Rip_init = f.drylandmodel[25] #Available
+		# Output files maps ===================================== Print = 
+		self.DirOutput = f.drylandmodel[81]		# Output directory
+		#reading output points
+		self.fname_DISpoints = f.drylandmodel[75]	# Discharge points
+		self.fname_SMDpoints = f.drylandmodel[77]	# Soil moisture points
+		self.fname_GWpoints = f.drylandmodel[79]	# Groundwater observation points
 		
 		print("Model Name: ",self.Mname)
 		
@@ -250,13 +278,13 @@ class model_environment_status(object):
 			area_aux.accumulate_flow(
 				update_flow_director=self.act_update_flow_director)	
 			self.area_discharge = np.array(
-				rg.at_node['surface_water__discharge'])
-			rg.at_node['surface_water__discharge'][:] = 0
+				rg.at_node["surface_water__discharge"])
+			rg.at_node["surface_water__discharge"][:] = 0
 			self.run_flow_accum_areas = 1
 		else:
 			self.run_flow_accum_areas = 0
 			cth_area = rg.add_ones('node', 'cth_area_k', dtype=float)
-			rg.add_zeros('node', 'surface_water__discharge', dtype=float)
+			rg.add_zeros('node', "surface_water__discharge", dtype=float)
 			#self.cth_area = np.array(cth_area)
 			print('Cells factor area............. not provided as raster')
 		
@@ -368,7 +396,7 @@ class model_environment_status(object):
 		
 		# ======================== GW - groundwater parameters ===================
 		#read model domain of the GW model and merge it with the surface model
-		if inputfile.run_GW == 1:
+		if inputfile.run_GW > 0:
 			if not os.path.exists(inputfile.fname_GWdomain):
 				if os.path.exists(inputfile.fname_Mask):
 					(gw, gwz) = read_esri_ascii(inputfile.fname_Mask,
@@ -416,8 +444,17 @@ class model_environment_status(object):
 		rg.add_zeros('node', 'Q_ini', dtype=float)
 		rg.add_ones('node', 'kTr_ini', dtype=float)		
 
+		#-------------------------------------------------------------------
+		# Read overland flow mask for Manny's model
+		if not os.path.exists(inputfile.fname_mask_of): 
+			rg.add_ones('node', 'mask_of', dtype=float)
+			print('mask overland flow...... not provided as raster. Assumed all cells flux')
+		else:
+			read_esri_ascii(inputfile.fname_mask_of, name = 'mask_of', grid=rg)[1]
+		#-------------------------------------------------------------------
+		
 		# Setting groundwater component
-		if inputfile.run_GW == 1:
+		if inputfile.run_GW > 0:
 			print("Running Groundwater component")
 			# Reading specific yield
 			if not os.path.exists(inputfile.fname_SZ_Sy):				
@@ -490,7 +527,6 @@ class model_environment_status(object):
 				h = read_esri_ascii(inputfile.fname_GWini,
 					name='water_table__elevation', grid=gw)[1]
 
-			#qs = gw.add_zeros('link', 'unit_flux', dtype = float) # Unit flux for GW model
 			# Check if constant head boundary is provided
 			if not os.path.exists(inputfile.fname_CHB):				
 				print('Constant head boundary conditions not provided as raster')
@@ -500,7 +536,6 @@ class model_environment_status(object):
 				id_CHB = np.where(gw.at_node['SZ_CHB'] != -9999)[0]
 				gw.at_node['water_table__elevation'][id_CHB] = gw.at_node['SZ_CHB'][id_CHB]
 				gw.status_at_node[id_CHB] = gw.BC_NODE_IS_FIXED_VALUE
-
 			
 			# Calculating intial groundwater river deficit
 			rg.add_ones('node', 'riv_sat_deficit', dtype=float)
@@ -509,6 +544,58 @@ class model_environment_status(object):
 					np.array(rg.at_node['Soil_depth']), root_aux)
 			rg.at_node['riv_sat_deficit'] = (z - h)*np.power(rg.dx, 2)
 			self.Duz = np.array(root_aux)
+			
+			#===============================================================================
+			# SETTING TWO-LAYER GROUNDWATER MODEL ==========================================
+			if inputfile.run_GW > 1:
+				print("Running Groundwater with two layers")
+				# Reading specific yield, second layer
+				#print(inputfile.fname_SZ_Syb)
+				if not os.path.exists(inputfile.fname_SZ_Syb):				
+					gw.add_zeros('node', 'Sy_2', dtype=float) # Water table elevation
+					gw.at_node['Sy_2'] += 0.01
+					print('Second Layer, Specific yield...........not provided as raster. Global default applied of 0.01')
+				else:
+					read_esri_ascii(inputfile.fname_SZ_Syb,
+						name='Sy_2', grid=gw)[1]
+				
+				# Reading specific storativity, second layer
+				if not os.path.exists(inputfile.fname_SZ_Ssb):				
+					gw.add_zeros('node', 'Ss_2', dtype=float) # Water table elevation
+					gw.at_node['Sy_2'] += 0.001
+					print('Second Layer, Specific storage........not provided as raster. Global default applied of 0.01')
+				else:
+					read_esri_ascii(inputfile.fname_SZ_Ssb,
+						name='Ss_2', grid=gw)[1]
+				# Applying scale factor kSy
+				#gw.at_node['SZ_Sy'] *= inputfile.kSy_gw
+				
+				# Aquifer bottom second layer
+				if not os.path.exists(inputfile.fname_SZ_botb): 
+					gw.add_zeros('node', 'BOTb', dtype = float)
+					gw.at_node['BOTb'][:] = np.array(gw.at_node['BOT'][:]-50.) # Defailt values of aquifer bottom 
+					print('Second Layer, Aquifer bottom elevation..not provided as raster. Global default applied of 0.0 m')
+				else:
+					SZ_bot = read_esri_ascii(inputfile.fname_SZ_botb,
+						name='BOTb', grid=gw)[1]
+				
+				# Aquifer Saturated hydraulic conductivity, second layer
+				if not os.path.exists(inputfile.fname_SZ_Ksatb): 
+					gw.add_ones('node', 'Ksat_2', dtype=float)
+					#gw.at_node['Hydraulic_Conductivity'] += 1.0 # Defailt values of aquifer bottom 
+					print('Second Layer, Aquifer Ksat...... not provided as raster. Global default applied of 1.0 m/h')
+				else:
+					read_esri_ascii(inputfile.fname_SZ_Ksatb, name = 'Ksat_2', grid=gw)[1]
+				
+				# Read initial hydraulic head, second layer
+				if not os.path.exists(inputfile.fname_GWinib): 
+					gw.add_zeros('node', 'HEAD_2', dtype=float)
+					gw.at_node['HEAD_2'][:] += np.array(gw.at_node['water_table__elevation'][:])
+					print('Second Layer, Initial conditions...... not provided as raster. Assumed equal to water table upper layer')
+				else:
+					read_esri_ascii(inputfile.fname_GWinib, name = 'HEAD_2', grid=gw)[1]
+				
+				
 			
 		else:
 			print("Groundwater component not used")
@@ -519,7 +606,7 @@ class model_environment_status(object):
 			rg.at_node['riv_sat_deficit'][:] = 100*np.power(rg.dx, 2)
 			
 		self.SZgrid = gw		
-		
+					
 	# ======================== Defining core cells ========================
 		# defining nodes to reduce the number of operation
 		act_nodes = rg.core_nodes
@@ -640,7 +727,8 @@ class model_environment_status(object):
 		# calculating cells area
 		self.area_cells = rg.dx*rg.dy*rg.at_node['cth_area_k']
 		
-		self.area_cells_hills = rg.dx*rg.dy*rg.at_node['cth_area_k']
+		#self.area_cells_hills = rg.dx*rg.dy*rg.at_node['cth_area_k']
+		
 		self.area_cells_banks = np.zeros_like(z)
 		
 		self.area_catch_factor = (rg.at_node['cth_area_k']
@@ -650,15 +738,17 @@ class model_environment_status(object):
 		self.area_river_factor[self.river_ids_nodes] = 1 / np.sum(rg.at_node['cth_area_k'][self.basin_nodes])
 		
 		if rg.dx > inputfile.river_banks:		
-			self.area_cells_hills[self.riv_nodes] = (
-				self.area_cells_hills[self.riv_nodes]
-				- rg.at_node['river_length'][self.riv_nodes]
-				* (riv_width[self.riv_nodes]+2*inputfile.river_banks)
-				)
+			#self.area_cells_hills[self.riv_nodes] = (
+			#	self.area_cells_hills[self.riv_nodes]
+			#	- rg.at_node['river_length'][self.riv_nodes]
+			#	* (riv_width[self.riv_nodes]+2*inputfile.river_banks)
+			#	)
 	
-			self.area_cells_banks = self.area_cells-self.area_cells_hills
+			self.area_cells_banks[self.riv_nodes] = np.array(
+				rg.at_node['river_length'][self.riv_nodes]
+				* (riv_width[self.riv_nodes]+2*inputfile.river_banks))
 		else:
-			self.area_cells_hills[self.riv_nodes] = 0.0
+			#self.area_cells_hills[self.riv_nodes] = 0.0
 			self.area_cells_banks[self.riv_nodes] = (rg.dx
 				*rg.dy*rg.at_node['cth_area_k'][self.riv_nodes]
 				)
@@ -675,7 +765,7 @@ class model_environment_status(object):
 			self.area_cells_banks[self.area_cells_banks > 0])
 		
 		# hillslope area cell factor [-]
-		self.hill_factor = aux_mask*self.area_cells_hills/self.area_cells
+		#self.hill_factor = aux_mask*self.area_cells_hills/self.area_cells
 		
 		# proportion of riparian area [-]
 		# to pass from [m3] -> [mm]
@@ -792,7 +882,7 @@ class model_environment_status(object):
 		
 		#print(self.gaugeidOF)
 		#print(self.gaugeidUZ)
-		#print(self.gaugeidGW)
+		print(self.gaugeidGW)
 	
 	def save_data_to_file(inputfile, model_environment_status):
 		"""

@@ -52,10 +52,6 @@ def run_DRYP(filename_input):
 	ro = runoff_routing(env_state, data_in)
 	gw = gwflow_EFD(env_state, data_in)
 	
-	# Parameters for the second layer
-	# add_second_layer_gw(env_state, thickness, Ksat, Sy, Ss)
-	gw.add_second_layer_gw(env_state, 50.0, 5.0, 0.01, 0.001)
-	
 	# Output variables and location
 	outavg = GlobalTimeVarAvg(env_state.area_catch_factor)
 	outavg_rip = GlobalTimeVarAvg(env_state.area_river_factor)
@@ -104,14 +100,15 @@ def run_DRYP(filename_input):
 					)
 				
 				# add abstraction as rain
-				rf.rain += abc.auz
+				rain = np.array(rf.rain + abc.auz)*0.0
 				
 				# estimate infiltration
-				inf.run_infiltration_one_step(rf, env_state, data_in)
+				inf.run_infiltration_one_step(rain, env_state, data_in)
 				
 				# subsurface storage [mm]
-				if data_in.run_GW == 1:
-					aux_ssz = storage_uz_sz(env_state, np.array(swb.tht_dt))
+				if data_in.run_GW > 0:
+					aux_ssz = storage_uz_sz(env_state,
+						np.array(swb.tht_dt), data_in.run_GW)
 				
 				# soil storage at time t0 [mm]
 				aux_usz = np.mean((swb.L_0[env_state.act_nodes]))
@@ -131,21 +128,29 @@ def run_DRYP(filename_input):
 				
 				# estimate available storage ar riparian zone
 				# change discharge from m to mm per unit rip. area
+				#print('aa',env_state.SZgrid.at_node['discharge'][env_state.riv_nodes])
+				#print('a',swb_rip.smd_uz[env_state.riv_nodes])
 				smd, qriv, inf_rip_dt = swb_rip.water_deficit(
-					(env_state.SZgrid.at_node['discharge']*1000*
-					env_state.inv_riv_factor),
+					(env_state.SZgrid.at_node['discharge']*1000
+					*env_state.inv_riv_factor),
 					rpet_dt)
 				
 				env_state.grid.at_node['riv_sat_deficit'][:] += (
 					smd*env_state.rarea)
-				#env_state.grid.at_node['riv_sat_deficit'][:] *= np.array(
+				#print(env_state.grid.at_node['riv_sat_deficit'][env_state.riv_nodes])# *= np.array(
 				#	swb_rip.tht_dt)
-				
+				#print('b',swb_rip.smd_uz[env_state.riv_nodes])
 				# update discharge
-				env_state.SZgrid.at_node['discharge'][env_state.riv_nodes] = (
-					env_state.SZgrid.at_node['discharge'][env_state.riv_nodes]*
+				env_state.SZgrid.at_node['discharge'][env_state.riv_nodes] = np.array(
 					qriv[env_state.riv_nodes]*
 					env_state.riv_factor[env_state.riv_nodes]*0.001)
+				#print('dis',env_state.SZgrid.at_node['discharge'][env_state.riv_nodes])
+				#--------------------------------------------------------------
+				## add flux for Manny's model
+				env_state.SZgrid.at_node['discharge'] += np.array(
+					env_state.grid.at_node['mask_of']*rf.rain*0.001
+					)
+				#--------------------------------------------------------------
 				
 				# estimate runoff
 				ro.run_runoff_one_step(inf, swb, abc.aof, env_state, data_in)
@@ -212,7 +217,7 @@ def run_DRYP(filename_input):
 				rzs_mb.append(aux_usp1-aux_usp) #[mm]
 				
 				# activate groundwater component (gw)
-				if data_in.run_GW == 1:
+				if data_in.run_GW > 0:
 					if dt_GW == data_in.dtSZ:
 						# empty discharge array
 						env_state.SZgrid.at_node['discharge'][:] = 0.0
@@ -222,8 +227,12 @@ def run_DRYP(filename_input):
 								rch_agg - etg_agg)*0.001 #[mm/dt]
 						
 						# run groundwater component
-						gw.run_one_step_gw_2Layer(env_state, data_in.dtSZ/60,
-							swb.tht_dt,	env_state.Droot*0.001)
+						if data_in.run_GW > 1:
+							gw.run_one_step_gw_2Layer(env_state, data_in.dtSZ/60,
+								swb.tht_dt,	env_state.Droot*0.001)
+						else:
+							gw.run_one_step_gw(env_state, data_in.dtSZ/60,
+								swb.tht_dt,	env_state.Droot*0.001)
 						
 						# empty array
 						rch_agg = np.zeros(len(swb.L_0))
@@ -234,23 +243,25 @@ def run_DRYP(filename_input):
 					dt_GW += np.int(data_in.dt)
 				
 				# update soil moisture
-				swb.run_soil_aquifer_one_step(env_state,
-					env_state.grid.at_node['topographic__elevation'],
-					env_state.SZgrid.at_node['water_table__elevation'],
-					env_state.Duz,
-					swb.tht_dt)
+				if data_in.run_GW > 0:
+					swb.run_soil_aquifer_one_step(env_state,
+						env_state.grid.at_node['topographic__elevation'],
+						env_state.SZgrid.at_node['water_table__elevation'],
+						env_state.Duz,
+						swb.tht_dt)
 				
 				# update rooting depth
-				env_state.Duz = swb.Duz
-				
+				if data_in.run_GW > 0:
+					env_state.Duz = swb.Duz
+				#print('a')
 				# estimate groundwater storage change for delta t
-				if data_in.run_GW == 1:
+				if data_in.run_GW > 0:
 					gws_mb.append(storage_uz_sz(env_state,
-							np.array(swb.tht_dt))
+							np.array(swb.tht_dt), data_in.run_GW)
 							-aux_ssz)
 				else:
 					gws_mb.append(0.0)
-				
+				#print('b')
 				# save groundwater discharge at outlet for water balance
 				gbf_mb.append(np.mean(
 					env_state.SZgrid.at_node['discharge'][env_state.act_nodes]*1000)
@@ -270,8 +281,10 @@ def run_DRYP(filename_input):
 				outpts.extract_point_var_OF(env_state.gaugeidOF,ro)
 				outpts.extract_point_var_SZ(env_state.gaugeidGW,gw)
 				# Extract values from the second layer
-				outpts.extract_point_var_SZ_L2(
-					env_state.gaugeidGW, env_state.SZgrid)
+				if data_in.run_GW > 1:						  
+					outpts.extract_point_var_SZ_L2(
+						env_state.gaugeidGW, env_state.SZgrid)
+					
 				state_var.get_env_state(t_pre, rf, inf, swb,
 									ro, gw, swb_rip, env_state)
 				
@@ -293,7 +306,8 @@ def run_DRYP(filename_input):
 	# save point results
 	outpts.save_point_var(env_state.fnameTS_OF, rf.date_sim_dt,
 			ro.carea[env_state.gaugeidOF],
-			env_state.rarea[env_state.gaugeidOF])	
+			env_state.rarea[env_state.gaugeidOF],
+			data_in.save_dis_depth)
 	
 	# save grided model result datasets 
 	state_var.save_netCDF_var(env_state.fnameTS_avg+'.nc')
